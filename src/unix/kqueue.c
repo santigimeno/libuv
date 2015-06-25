@@ -241,7 +241,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (ev->flags & EV_ERROR)
         revents |= UV__POLLERR;
 
-      if (ev->flags & EV_EOF)
+      if ((w->pevents & UV__POLLIN) && (ev->flags & EV_EOF))
         revents |= UV__POLLRDHUP;
 
       if (revents == 0)
