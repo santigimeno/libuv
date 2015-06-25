@@ -183,7 +183,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    e.events = w->pevents | UV__POLLRDHUP;
+    e.events = w->pevents;
+    if (w->pevents & UV__POLLIN)
+      e.events |= UV__POLLRDHUP;
     e.data = w->fd;
 
     if (w->events == 0)
