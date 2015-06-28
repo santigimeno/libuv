@@ -38,6 +38,8 @@ static uv_connect_t connect_req;
 static uv_shutdown_t shutdown_req;
 static uv_write_t write_req;
 
+static int read_bytes = 0;
+static char read_data[4];
 
 static void startup(void) {
 #ifdef _WIN32
@@ -108,14 +110,21 @@ static void shutdown_cb(uv_shutdown_t* req, int status) {
 
 
 static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
+  int end_pos;
   ASSERT(tcp != NULL);
 
   if (nread >= 0) {
-    ASSERT(nread == 4);
-    ASSERT(memcmp("PING", buf->base, nread) == 0);
+    end_pos = read_bytes;
+    read_bytes += nread;
+    ASSERT(read_bytes <= 4);
+    if (nread > 0)
+      memcpy(read_data + end_pos, buf->base, nread);
   }
   else {
     ASSERT(nread == UV_EOF);
+    ASSERT(read_bytes == 4);
+    ASSERT(memcmp("PING", read_data, read_bytes) == 0);
+    ASSERT(read_bytes == 4);
     printf("GOT EOF\n");
     uv_close((uv_handle_t*)tcp, close_cb);
   }
