@@ -331,6 +331,9 @@ TEST_DECLARE   (closed_fd_events)
 TEST_DECLARE   (osx_select)
 TEST_DECLARE   (osx_select_many_fds)
 #endif
+
+TEST_DECLARE   (tcp_shutdown_not_conn)
+
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
 HELPER_DECLARE (udp4_echo_server)
@@ -718,6 +721,7 @@ TASK_LIST_START
   TEST_ENTRY  (dlerror)
   TEST_ENTRY  (ip4_addr)
   TEST_ENTRY  (ip6_addr_link_local)
+  TEST_ENTRY  (tcp_shutdown_not_conn)
 #if 0
   /* These are for testing the test runner. */
   TEST_ENTRY  (fail_always)

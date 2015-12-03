@@ -411,6 +411,7 @@
         'test/test-udp-multicast-interface.c',
         'test/test-udp-multicast-interface6.c',
         'test/test-udp-try-send.c',
+        'test/test-shutdown-notconn.c'
       ],
       'conditions': [
         [ 'OS=="win"', {
