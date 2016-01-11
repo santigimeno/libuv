@@ -304,6 +304,7 @@ TEST_DECLARE   (dlerror)
 TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
+TEST_DECLARE   (poll_disconnect)
 
 TEST_DECLARE   (ip4_addr)
 TEST_DECLARE   (ip6_addr_link_local)
@@ -605,6 +606,7 @@ TASK_LIST_START
   TEST_ENTRY  (poll_duplex)
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
+  TEST_ENTRY  (poll_disconnect)
 
   TEST_ENTRY  (socket_buffer_size)
 

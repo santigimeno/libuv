@@ -200,6 +200,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-poll-close-doesnt-corrupt-stack.c \
                          test/test-poll-closesocket.c \
                          test/test-poll.c \
+                         test/test-poll-disconnect.c \
                          test/test-process-title.c \
                          test/test-queue-foreach-delete.c \
                          test/test-ref.c \
