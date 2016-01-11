@@ -321,7 +321,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * the current watcher. Also, filters out events that users has not
        * requested us to watch.
        */
-      pe->events &= w->pevents | UV__POLLERR | UV__POLLHUP | UV_POLLRDHUP;
+      pe->events &= w->pevents | UV__POLLERR | UV__POLLHUP | UV__POLLRDHUP;
 
       /* Work around an epoll quirk where it sometimes reports just the
        * EPOLLERR or EPOLLHUP event.  In order to force the event loop to
