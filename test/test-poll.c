@@ -30,7 +30,7 @@
 #include "task.h"
 
 
-#define NUM_CLIENTS 2
+#define NUM_CLIENTS 5
 #define TRANSFER_BYTES (1 << 16)
 
 #undef MIN
@@ -198,8 +198,6 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
   if (events & UV_READABLE) {
     int action = rand() % 7;
 
-    fprintf(stderr, "READABLE action: %d\n", action);
-
     switch (action) {
       case 0:
       case 1: {
@@ -270,13 +268,10 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
   }
 
   if (events & UV_WRITABLE) {
-    fprintf(stderr, "WRITABLE\n");
     if (context->sent < TRANSFER_BYTES &&
         !(test_mode == UNIDIRECTIONAL && context->is_server_connection)) {
       /* We have to send more bytes. */
       int action = rand() % 7;
-
-      fprintf(stderr, "WRITABLE action: %d\n", action);
 
       switch (action) {
         case 0:
@@ -365,7 +360,6 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
       }
 
     } else {
-      fprintf(stderr, "FIN\n");
       /* Nothing more to write. Send FIN. */
       int r;
 #ifdef _WIN32
@@ -377,10 +371,6 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
       context->sent_fin = 1;
       new_events &= ~UV_WRITABLE;
     }
-  }
-
-  if (events & UV_DISCONNECT) {
-    fprintf(stderr, "DISCONNECT\n");
   }
 
   if (context->got_fin && context->sent_fin) {
@@ -471,9 +461,9 @@ static void server_poll_cb(uv_poll_t* handle, int status, int events) {
 #endif
 
   connection_context = create_connection_context(sock, 1);
-  connection_context->events = UV_READABLE | UV_WRITABLE | UV_DISCONNECT;
+  connection_context->events = UV_READABLE | UV_WRITABLE;
   r = uv_poll_start(&connection_context->poll_handle,
-                    UV_READABLE | UV_WRITABLE | UV_DISCONNECT,
+                    UV_READABLE | UV_WRITABLE,
                     connection_poll_cb);
   ASSERT(r == 0);
 
@@ -515,9 +505,9 @@ static void start_client(void) {
   sock = create_bound_socket(addr);
   context = create_connection_context(sock, 0);
 
-  context->events = UV_READABLE | UV_WRITABLE | UV_DISCONNECT;
+  context->events = UV_READABLE | UV_WRITABLE;
   r = uv_poll_start(&context->poll_handle,
-                    UV_READABLE | UV_WRITABLE | UV_DISCONNECT,
+                    UV_READABLE | UV_WRITABLE,
                     connection_poll_cb);
   ASSERT(r == 0);
 
