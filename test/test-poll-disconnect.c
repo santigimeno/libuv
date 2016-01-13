@@ -129,16 +129,11 @@ static void destroy_connection_context(connection_context_t* context) {
   uv_close((uv_handle_t*) &context->poll_handle, connection_close_cb);
 }
 
-
-static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
+static void client_connection_poll_cb(uv_poll_t* handle, int status, int events) {
   connection_context_t* context = (connection_context_t*) handle->data;
   unsigned int new_events;
   int r;
-  char buffer[5];
-
-  fprintf(stderr, "%s\n", context->is_server_connection ? "ON SERVER" : "ON CLIENT");
-  fprintf(stderr, "%d - %d - %u\n", events, context->events, ~context->events);
-
+  char buffer[4];
 
   ASSERT(status == 0);
   ASSERT(events & context->events);
@@ -147,50 +142,74 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
   new_events = context->events;
 
   if (events & UV_DISCONNECT) {
-    fprintf(stderr, "DISCONNECT: %d\n", context->is_server_connection);
-    new_events &= ~UV_DISCONNECT;
+    fprintf(stderr, "CLIENT DISCONNECT\n");
   }
 
   if (events & UV_READABLE) {
-    fprintf(stderr, "READABLE: %d\n", context->is_server_connection);
-    if (context->is_server_connection) {
-      r = recv(context->sock, buffer, sizeof buffer, 0);
-      ASSERT(r == 4);
-      /* Send FIN. */
-      int r;
-#ifdef _WIN32
-      r = shutdown(context->sock, SD_SEND);
-#else
-      r = shutdown(context->sock, SHUT_WR);
-#endif
-      ASSERT(r == 0);
-      context->sent_fin = 1;
-    } else {
-      r = recv(context->sock, buffer, sizeof buffer, 0);
-      ASSERT(r == 0);
-      context->got_fin = 1;
-    }
-  }
+    fprintf(stderr, "CLIENT READABLE\n");
+    r = recv(context->sock, buffer, sizeof buffer, 0);
+    ASSERT(r == 0);
 
-  if (events & UV_WRITABLE) {
-    fprintf(stderr, "WRITABLE\n");
-    if (!context->is_server_connection) {
-      r = send(context->sock, "ping", 4, 0);
-      ASSERT(r == 4);
-      new_events &= ~UV_WRITABLE;
-    }
-  }
-
-  if (context->got_fin || context->sent_fin) {
     /* Sent and received FIN. Close and destroy context. */
+    context->events = 0;
+  }
+
+  if (events & UV_WRITABLE)  {
+    fprintf(stderr, "CLIENT WRITABLE\n");
+    r = send(context->sock, "ping", 4, 0);
+    ASSERT(r == 4);
+    new_events &= ~UV_WRITABLE;
+  }
+
+  if (context->events == 0) {
     close_socket(context->sock);
     destroy_connection_context(context);
-    context->events = 0;
-
   } else if (new_events != context->events) {
     /* Poll mask changed. Call uv_poll_start again. */
     context->events = new_events;
-    uv_poll_start(handle, new_events, connection_poll_cb);
+    uv_poll_start(handle, new_events, client_connection_poll_cb);
+  }
+
+  /* Assert that uv_is_active works correctly for poll handles. */
+  if (context->events != 0) {
+    ASSERT(1 == uv_is_active((uv_handle_t*) handle));
+  } else {
+    ASSERT(0 == uv_is_active((uv_handle_t*) handle));
+  }
+}
+
+static void server_connection_poll_cb(uv_poll_t* handle, int status, int events) {
+  connection_context_t* context = (connection_context_t*) handle->data;
+  unsigned int new_events;
+  int r;
+  char buffer[4];
+
+  ASSERT(status == 0);
+  ASSERT(events & context->events);
+  ASSERT(!(events & ~context->events));
+
+  new_events = context->events;
+
+  if (events & UV_READABLE) {
+    fprintf(stderr, "SERVER UV_READABLE\n");
+    r = recv(context->sock, buffer, sizeof buffer, 0);
+    if (context->sent_fin == 0) {
+      ASSERT(r == 4);
+      /* Send FIN. */
+      int r;
+  #ifdef _WIN32
+        r = shutdown(context->sock, SD_SEND);
+  #else
+        r = shutdown(context->sock, SHUT_WR);
+  #endif
+      ASSERT(r == 0);
+      context->sent_fin = 1;
+    } else {
+      ASSERT(r == 0);
+      close_socket(context->sock);
+      destroy_connection_context(context);
+      context->events = 0;
+    }
   }
 
   /* Assert that uv_is_active works correctly for poll handles. */
@@ -250,8 +269,11 @@ static void server_poll_cb(uv_poll_t* handle, int status, int events) {
   connection_context->events = UV_READABLE;
   r = uv_poll_start(&connection_context->poll_handle,
                     UV_READABLE,
-                    connection_poll_cb);
+                    server_connection_poll_cb);
   ASSERT(r == 0);
+
+  close_socket(server_context->sock);
+  destroy_server_context(server_context);
 }
 
 
@@ -289,7 +311,7 @@ static void start_client(void) {
   context->events = UV_READABLE | UV_WRITABLE | UV_DISCONNECT;
   r = uv_poll_start(&context->poll_handle,
                     UV_READABLE | UV_WRITABLE | UV_DISCONNECT,
-                    connection_poll_cb);
+                    client_connection_poll_cb);
   ASSERT(r == 0);
 
   r = connect(sock, (struct sockaddr*) &server_addr, sizeof server_addr);
