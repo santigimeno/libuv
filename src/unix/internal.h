@@ -97,10 +97,11 @@
 #endif
 
 #if defined(__sun) || defined(_AIX)
-# define UV__POLLIN   POLLIN
-# define UV__POLLOUT  POLLOUT
-# define UV__POLLERR  POLLERR
-# define UV__POLLHUP  POLLHUP
+# define UV__POLLIN     POLLIN
+# define UV__POLLOUT    POLLOUT
+# define UV__POLLERR    POLLERR
+# define UV__POLLHUP    POLLHUP
+# define UV__POLLRDHUP  POLLRDHUP
 #endif
 
 #ifndef UV__POLLIN
