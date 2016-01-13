@@ -30,7 +30,7 @@
 #include "task.h"
 
 
-#define NUM_CLIENTS 5
+#define NUM_CLIENTS 2
 #define TRANSFER_BYTES (1 << 16)
 
 #undef MIN

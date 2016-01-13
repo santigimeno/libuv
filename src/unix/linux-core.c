@@ -191,6 +191,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     else
       op = UV__EPOLL_CTL_MOD;
 
+    fprintf(stderr, "uv__epoll_ctl: %d\n", w->pevents);
     /* XXX Future optimization: do EPOLL_CTL_MOD lazily if we stop watching
      * events, skip the syscall and squelch the events after epoll_wait().
      */

@@ -842,7 +842,7 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
-  assert(0 == (events & ~(UV__POLLIN | UV__POLLOUT)));
+  assert(0 == (events & ~(UV__POLLIN | UV__POLLOUT | UV__POLLRDHUP)));
   assert(0 != events);
 
   if (w->fd == -1)
@@ -854,6 +854,7 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if ((unsigned) w->fd >= loop->nwatchers)
     return;
 
+  fprintf(stderr, "uv__io_stop: %d - %d\n", w->pevents, events);
   w->pevents &= ~events;
 
   if (w->pevents == 0) {
@@ -874,7 +875,7 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
-  uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT);
+  uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT | UV__POLLRDHUP);
   QUEUE_REMOVE(&w->pending_queue);
 
   /* Remove stale events for this file descriptor */
@@ -889,7 +890,7 @@ void uv__io_feed(uv_loop_t* loop, uv__io_t* w) {
 
 
 int uv__io_active(const uv__io_t* w, unsigned int events) {
-  assert(0 == (events & ~(UV__POLLIN | UV__POLLOUT)));
+  assert(0 == (events & ~(UV__POLLIN | UV__POLLOUT | UV__POLLRDHUP)));
   assert(0 != events);
   return 0 != (w->pevents & events);
 }
