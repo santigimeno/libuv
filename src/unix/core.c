@@ -854,7 +854,6 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if ((unsigned) w->fd >= loop->nwatchers)
     return;
 
-  fprintf(stderr, "uv__io_stop: %d - %d\n", w->pevents, events);
   w->pevents &= ~events;
 
   if (w->pevents == 0) {
