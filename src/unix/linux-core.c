@@ -180,7 +180,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   static int no_epoll_pwait;
   static int no_epoll_wait;
   struct uv__epoll_event events[1024];
-  struct uv__epoll_event* pe = NULL;
+  struct uv__epoll_event* pe;
   struct uv__epoll_event e;
   int real_timeout;
   QUEUE* q;
@@ -193,10 +193,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int count;
   int nfds;
   int fd;
-  int op = 0;
+  int op;
   int i;
-
-  memset(&e, 0, sizeof(struct uv__epoll_event));
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -388,7 +386,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (have_signals != 0)
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN | POLLPRI);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
+                                 POLLIN | POLLPRI);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
@@ -720,7 +719,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
 #if defined(__arm__)
       /* Fallback for pre-3.8 kernels. */
       static const char model_marker[] = "Processor\t: ";
-#else	/* defined(__mips__) */
+#else /* defined(__mips__) */
       static const char model_marker[] = "cpu model\t\t: ";
 #endif
       if (strncmp(buf, model_marker, sizeof(model_marker) - 1) == 0) {

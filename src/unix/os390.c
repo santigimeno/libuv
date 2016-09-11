@@ -26,7 +26,7 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   int rv;
 
   p[0].fd = fd;
-  p[0].events = POLLIN;
+  p[0].events = POLLIN | POLLPRI;
 
   do
     rv = poll(p, 1, 0);

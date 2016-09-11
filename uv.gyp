@@ -380,6 +380,7 @@
         'test/test-pipe-set-non-blocking.c',
         'test/test-platform-output.c',
         'test/test-poll.c',
+        'test/test-poll-oob.c',
         'test/test-poll-close.c',
         'test/test-poll-close-doesnt-corrupt-stack.c',
         'test/test-poll-closesocket.c',
