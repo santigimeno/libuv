@@ -34,6 +34,10 @@
 #include <fcntl.h>
 #include <time.h>
 
+#ifndef EV_OOBAND
+#define EV_OOBAND  EV_FLAG1
+#endif
+
 static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 
 
@@ -53,11 +57,12 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   int rc;
 
   rc = 0;
-  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+  EV_SET(&ev, fd, EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
   if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
     rc = -errno;
 
-  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+
+  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE | EV_OOBAND, 0, 0, 0);
   if (rc == 0)
     if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
       abort();
@@ -104,8 +109,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) {
-      filter = EVFILT_READ;
+    if (((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) ||
+        ((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)) {
+      if((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0)
+        filter = EVFILT_READ;
+      if((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)
+        filter = EV_OOBAND;
       fflags = 0;
       op = EV_ADD;
 
@@ -230,9 +239,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       revents = 0;
 
-      if (ev->filter == EVFILT_READ) {
+      if (ev->filter == EVFILT_READ || ev->filter == EV_OOBAND) {
         if (w->pevents & POLLIN) {
           revents |= POLLIN;
+          w->rcount = ev->data;
+        } else if(w->pevents & POLLPRI) {
+          revents |= POLLPRI;
           w->rcount = ev->data;
         } else {
           /* TODO batch up */
@@ -279,7 +291,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (have_signals != 0)
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
+                                 POLLIN | POLLPRI);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
@@ -425,7 +438,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
+  uv__io_start(handle->loop, &handle->event_watcher, POLLIN | POLLPRI);
 
   return 0;
 }

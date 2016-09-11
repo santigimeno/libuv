@@ -315,6 +315,9 @@ TEST_DECLARE   (thread_rwlock_trylock)
 TEST_DECLARE   (thread_create)
 TEST_DECLARE   (thread_equal)
 TEST_DECLARE   (dlerror)
+#ifdef __linux__
+TEST_DECLARE   (poll_oob)
+#endif
 TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
@@ -638,6 +641,10 @@ TASK_LIST_START
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
   TEST_ENTRY  (poll_bad_fdtype)
+#ifdef __linux__
+	TEST_ENTRY  (poll_oob)
+#endif
+
 #ifdef __linux__
   TEST_ENTRY  (poll_nested_epoll)
 #endif
