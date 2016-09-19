@@ -41,12 +41,11 @@ static const int kMaxTicks = 10;
 static int check = 0;
 
 static void idle_cb(uv_idle_t* idle) {
-	usleep(100);
+  usleep(100);
   if (++ticks < kMaxTicks)
     return;
 
-	
-	uv_poll_stop(&poll_req);
+  uv_poll_stop(&poll_req);
   uv_close((uv_handle_t*) &server_handle, NULL);
   uv_close((uv_handle_t*) &client_handle, NULL);
   uv_close((uv_handle_t*) &peer_handle, NULL);
@@ -54,16 +53,16 @@ static void idle_cb(uv_idle_t* idle) {
 }
 
 static void poll_cb(uv_poll_t* handle, int status, int events) {
-	char buffer[5];
+  char buffer[5];
 
-	if(events & UV_PRIORITIZED) {
-		int n = recv(client_fd, &buffer, 5, MSG_OOB);
-		if(errno == EINVAL) {
-			return;
-		}
-		check = 1;
-		ASSERT(n > 0);
-	}
+  if(events & UV_PRIORITIZED) {
+    int n = recv(client_fd, &buffer, 5, MSG_OOB);
+    if(errno == EINVAL) {
+      return;
+    }
+    check = 1;
+    ASSERT(n > 0);
+  }
 }
 
 static void connect_cb(uv_connect_t* req, int status) {
@@ -72,9 +71,9 @@ static void connect_cb(uv_connect_t* req, int status) {
 }
 
 static int non_blocking(int fd, int set) {
-	int r;
+  int r;
 
-	do
+  do
     r = ioctl(client_fd, FIONBIO, &set);
   while (r == -1 && errno == EINTR);
 
@@ -95,8 +94,8 @@ static void connection_cb(uv_stream_t* handle, int status) {
   ASSERT(0 == uv_fileno((uv_handle_t*) &peer_handle, &server_fd));
   ASSERT(0 == non_blocking(client_fd, 1));
 
-	uv_poll_init(uv_default_loop(), &poll_req, client_fd);
-	ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
+  uv_poll_init(uv_default_loop(), &poll_req, client_fd);
+  ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
   /* The problem triggers only on a second message, it seem that xnu is not
    * triggering `kevent()` for the first one
@@ -119,7 +118,7 @@ static void connection_cb(uv_stream_t* handle, int status) {
 
 TEST_IMPL(poll_oob) {
   struct sockaddr_in addr;
-	int addrlen = sizeof(addr), r = 0;
+  int addrlen = sizeof(addr), r = 0;
   uv_loop_t* loop;
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
@@ -135,18 +134,18 @@ TEST_IMPL(poll_oob) {
   /* Ensure two separate packets */
   ASSERT(0 == uv_tcp_nodelay(&client_handle, 1));
 
-	client_fd = socket(AF_INET, SOCK_STREAM, 0);
+  client_fd = socket(AF_INET, SOCK_STREAM, 0);
   ASSERT(client_fd >= 0);
-	do {
+  do {
     errno = 0;
     r = connect(client_fd, (const struct sockaddr*)&addr, addrlen);
   } while (r == -1 && errno == EINTR);
-	ASSERT(r == 0);
+  ASSERT(r == 0);
 
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   ASSERT(ticks == kMaxTicks);
-	ASSERT(check == 1);
+  ASSERT(check == 1);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

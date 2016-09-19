@@ -111,9 +111,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) ||
         ((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)) {
-      if((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0)
+      if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0)
         filter = EVFILT_READ;
-      if((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)
+      if ((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)
         filter = EV_OOBAND;
       fflags = 0;
       op = EV_ADD;
