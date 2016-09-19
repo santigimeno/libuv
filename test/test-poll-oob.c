@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright Fedor Indutny & CurlyMo All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,139 +19,136 @@
  * IN THE SOFTWARE.
  */
 
-
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <netdb.h>
-#include <netinet/in.h>
-
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <poll.h>
-#include <assert.h>
-#include <errno.h>
-#include <pthread.h>
+#if !defined(_WIN32)
 
 #include "uv.h"
 #include "task.h"
 
-int checks = 0;
-int loop = 1;
-int running[2] = {0};
-int fd[3] = {0};
-pthread_t pth[2];
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
-static void server_poll_cb(uv_poll_t* handle, int status, int events) {
-  int c, n;
+static uv_tcp_t server_handle;
+static uv_tcp_t client_handle;
+static uv_tcp_t peer_handle;
+static uv_poll_t poll_req;
+static uv_idle_t idle;
+static uv_os_fd_t client_fd;
+static uv_connect_t connect_req;
+static int ticks;
+static const int kMaxTicks = 10;
+static int check = 0;
 
-  if(events & UV_PRIORITIZED) {
-    n = recv(fd[1], &c, 1, MSG_OOB);
-    ASSERT(c == 2);
-    ASSERT(n == 1);
-    __sync_add_and_fetch(&checks, 1);
-    uv_poll_stop(handle);
-  }
+static void idle_cb(uv_idle_t* idle) {
+	usleep(100);
+  if (++ticks < kMaxTicks)
+    return;
+
+	
+	uv_poll_stop(&poll_req);
+  uv_close((uv_handle_t*) &server_handle, NULL);
+  uv_close((uv_handle_t*) &client_handle, NULL);
+  uv_close((uv_handle_t*) &peer_handle, NULL);
+  uv_close((uv_handle_t*) idle, NULL);
 }
 
-static void client_poll_cb(uv_poll_t* handle, int status, int events) {
-  int n, c;
-  c = 2;
+static void poll_cb(uv_poll_t* handle, int status, int events) {
+	char buffer[5];
 
-  if(events & UV_WRITABLE) {
-    n = send(fd[0], &c, 1, MSG_OOB);
-    ASSERT(n >= 0);
-    __sync_add_and_fetch(&checks, 1);
-    uv_poll_stop(handle);
-  }
+	if(events & UV_PRIORITIZED) {
+		int n = recv(client_fd, &buffer, 5, MSG_OOB);
+		if(errno == EINVAL) {
+			return;
+		}
+		check = 1;
+		ASSERT(n > 0);
+	}
 }
 
-static void *thread_srv(void *a) {
-  uv_poll_t poll_req;
-  struct sockaddr_in servaddr, cliaddr;
-  unsigned int clilen;
-  int r;
+static void connect_cb(uv_connect_t* req, int status) {
+  ASSERT(req->handle == (uv_stream_t*) &client_handle);
+  ASSERT(0 == status);
+}
 
-  fd[2] = socket(PF_INET, SOCK_STREAM, 0);
-  ASSERT(fd[2] >= 0);
+static int non_blocking(int fd, int set) {
+	int r;
 
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = INADDR_ANY;
-  servaddr.sin_port = htons(TEST_PORT);
+	do
+    r = ioctl(client_fd, FIONBIO, &set);
+  while (r == -1 && errno == EINTR);
 
-#ifndef _WIN32
-  {
-    int yes = 1;
-    r = setsockopt(fd[2], SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
-    ASSERT(r == 0);
-  }
-#endif  
-  
-  r = bind(fd[2], (struct sockaddr *) &servaddr, sizeof(servaddr));
-  ASSERT(r >= 0);
-
-  listen(fd[2], 1);
-  clilen = sizeof(cliaddr);
-
-  fd[1] = accept(fd[2], (struct sockaddr *)&cliaddr, &clilen);
-  ASSERT(fd[1] >= 0);
-
-  uv_poll_init(uv_default_loop(), &poll_req, fd[1]);
-  r = uv_poll_start(&poll_req, UV_PRIORITIZED, server_poll_cb);
-  ASSERT(r == 0);
-
-  while(loop) {
-    usleep(10);
-  }
-  running[0] = 0;
+  if(r)
+    return -errno;
 
   return 0;
 }
 
-static void *thread_cli(void *a) {
-  uv_poll_t poll_req;
+static void connection_cb(uv_stream_t* handle, int status) {
+  uv_os_fd_t server_fd;
   int r;
-  struct sockaddr_in serv_addr;
-  struct hostent *server;
 
-  fd[0] = socket(AF_INET, SOCK_STREAM, 0);
-  ASSERT(fd[0] >= 0);
+  ASSERT(0 == status);
+  ASSERT(0 == uv_accept(handle, (uv_stream_t*) &peer_handle));
 
-  server = gethostbyname("127.0.0.1");
-  ASSERT(server != NULL); 
+  /* Send some OOB data */
+  ASSERT(0 == uv_fileno((uv_handle_t*) &peer_handle, &server_fd));
+  ASSERT(0 == non_blocking(client_fd, 1));
 
-  serv_addr.sin_family = AF_INET;
-  memcpy(server->h_addr, &serv_addr.sin_addr.s_addr, server->h_length);
-  serv_addr.sin_port = htons(TEST_PORT);
+	uv_poll_init(uv_default_loop(), &poll_req, client_fd);
+	ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
-  r = connect(fd[0], (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-  ASSERT(r >= 0);
+  /* The problem triggers only on a second message, it seem that xnu is not
+   * triggering `kevent()` for the first one
+   */
+  do {
+    r = send(server_fd, "hello", 5, MSG_OOB);
+  } while (r < 0 && errno == EINTR);
+  ASSERT(5 == r);
 
-  uv_poll_init(uv_default_loop(), &poll_req, fd[0]);
-  r = uv_poll_start(&poll_req, UV_WRITABLE, client_poll_cb);
-  ASSERT(r == 0);  
-  while(loop) {
-    usleep(10);
-  }
-  running[1] = 0;
-  return 0;
+  do {
+    r = send(server_fd, "hello", 5, MSG_OOB);
+  } while (r < 0 && errno == EINTR);
+  ASSERT(5 == r);
+
+  ASSERT(0 == non_blocking(client_fd, 0));
+
+  ASSERT(0 == uv_idle_start(&idle, idle_cb));
 }
+
 
 TEST_IMPL(poll_oob) {
-  pthread_create(&pth[0], NULL, thread_srv, NULL);
-  sleep(1);
-  pthread_create(&pth[1], NULL, thread_cli, NULL);
-  sleep(1);
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  struct sockaddr_in addr;
+	int addrlen = sizeof(addr), r = 0;
+  uv_loop_t* loop;
 
-  loop = 0;
-  while(running[0] == 1 && running[1] == 0) {
-    usleep(10);
-  }
-  pthread_join(pth[0], NULL);
-  pthread_join(pth[1], NULL);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  loop = uv_default_loop();
 
-  ASSERT(checks == 2);
+  ASSERT(0 == uv_tcp_init(loop, &server_handle));
+  ASSERT(0 == uv_tcp_init(loop, &client_handle));
+  ASSERT(0 == uv_tcp_init(loop, &peer_handle));
+  ASSERT(0 == uv_idle_init(loop, &idle));
+  ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr, 0));
+  ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 1, connection_cb));
+
+  /* Ensure two separate packets */
+  ASSERT(0 == uv_tcp_nodelay(&client_handle, 1));
+
+	client_fd = socket(AF_INET, SOCK_STREAM, 0);
+  ASSERT(client_fd >= 0);
+	do {
+    errno = 0;
+    r = connect(client_fd, (const struct sockaddr*)&addr, addrlen);
+  } while (r == -1 && errno == EINTR);
+	ASSERT(r == 0);
+
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+
+  ASSERT(ticks == kMaxTicks);
+	ASSERT(check == 1);
+
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
+#endif
