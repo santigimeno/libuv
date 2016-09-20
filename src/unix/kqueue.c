@@ -110,10 +110,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd < (int) loop->nwatchers);
 
     if (((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) ||
-        ((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)) {
+        ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0)) {
       if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0)
         filter = EVFILT_READ;
-      if ((w->events & POLLPRI) == 0 && (w->pevents & POLLPRI) != 0)
+      if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0)
         filter = EV_OOBAND;
       fflags = 0;
       op = EV_ADD;
@@ -243,8 +243,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         if (w->pevents & POLLIN) {
           revents |= POLLIN;
           w->rcount = ev->data;
-        } else if(w->pevents & POLLPRI) {
-          revents |= POLLPRI;
+        } else if(w->pevents & UV__POLLPRI) {
+          revents |= UV__POLLPRI;
           w->rcount = ev->data;
         } else {
           /* TODO batch up */
@@ -292,7 +292,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | POLLPRI);
+                                 POLLIN | UV__POLLPRI);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
@@ -438,7 +438,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__io_start(handle->loop, &handle->event_watcher, POLLIN | POLLPRI);
+  uv__io_start(handle->loop, &handle->event_watcher, POLLIN | UV__POLLPRI);
 
   return 0;
 }

@@ -35,7 +35,6 @@ static uv_tcp_t peer_handle;
 static uv_poll_t poll_req;
 static uv_idle_t idle;
 static uv_os_fd_t client_fd;
-static uv_connect_t connect_req;
 static int ticks;
 static const int kMaxTicks = 10;
 static int check = 0;
@@ -54,30 +53,47 @@ static void idle_cb(uv_idle_t* idle) {
 
 static void poll_cb(uv_poll_t* handle, int status, int events) {
   char buffer[5];
+  int n;
 
-  if(events & UV_PRIORITIZED) {
-    int n = recv(client_fd, &buffer, 5, MSG_OOB);
-    if(errno == EINVAL) {
-      return;
-    }
-    check = 1;
-    ASSERT(n > 0);
+  ASSERT(events & UV_PRIORITIZED);
+  n = recv(client_fd, &buffer, 5, MSG_OOB);
+  if(errno == EINVAL) {
+    return;
   }
-}
-
-static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT(req->handle == (uv_stream_t*) &client_handle);
-  ASSERT(0 == status);
+  check = 1;
+  ASSERT(n > 0);
 }
 
 static int non_blocking(int fd, int set) {
   int r;
-
+#ifdef FIONBIO
   do
     r = ioctl(client_fd, FIONBIO, &set);
   while (r == -1 && errno == EINTR);
+#else
+  int flags;
 
-  if(r)
+  do
+    r = fcntl(fd, F_GETFL);
+  while (r == -1 && errno == EINTR);
+
+  if (r == -1)
+    return -errno;
+
+  /* Bail out now if already set/clear. */
+  if (!!(r & O_NONBLOCK) == !!set)
+    return 0;
+
+  if (set)
+    flags = r | O_NONBLOCK;
+  else
+    flags = r & ~O_NONBLOCK;
+
+  do
+    r = fcntl(fd, F_SETFL, flags);
+  while (r == -1 && errno == EINTR);
+#endif
+  if (r)
     return -errno;
 
   return 0;
@@ -100,11 +116,6 @@ static void connection_cb(uv_stream_t* handle, int status) {
   /* The problem triggers only on a second message, it seem that xnu is not
    * triggering `kevent()` for the first one
    */
-  do {
-    r = send(server_fd, "hello", 5, MSG_OOB);
-  } while (r < 0 && errno == EINTR);
-  ASSERT(5 == r);
-
   do {
     r = send(server_fd, "hello", 5, MSG_OOB);
   } while (r < 0 && errno == EINTR);

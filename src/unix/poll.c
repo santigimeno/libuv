@@ -32,9 +32,8 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   int pevents;
 
   handle = container_of(w, uv_poll_t, io_watcher);
-
-  if ((events & POLLERR) && (events & POLLPRI) != POLLPRI) {
-    uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | POLLPRI);
+  if ((events & POLLERR) && (events & UV__POLLPRI) != UV__POLLPRI) {
+    uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
     uv__handle_stop(handle);
     handle->poll_cb(handle, -EBADF, 0);
     return;
@@ -43,7 +42,7 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   pevents = 0;
   if (events & POLLIN)
     pevents |= UV_READABLE;
-  if (events & POLLPRI)
+  if (events & UV__POLLPRI)
     pevents |= UV_PRIORITIZED;
   if (events & POLLOUT)
     pevents |= UV_WRITABLE;
@@ -88,7 +87,7 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
 static void uv__poll_stop(uv_poll_t* handle) {
   uv__io_stop(handle->loop,
               &handle->io_watcher,
-              POLLIN | POLLOUT | UV__POLLRDHUP | POLLPRI);
+              POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
   uv__handle_stop(handle);
 }
 
@@ -116,7 +115,7 @@ int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
   if (pevents & UV_READABLE)
     events |= POLLIN;
   if (pevents & UV_PRIORITIZED)
-    events |= POLLPRI;
+    events |= UV__POLLPRI;
   if (pevents & UV_WRITABLE)
     events |= POLLOUT;
   if (pevents & UV_DISCONNECT)

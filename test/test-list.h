@@ -642,7 +642,7 @@ TASK_LIST_START
   TEST_ENTRY  (poll_close)
   TEST_ENTRY  (poll_bad_fdtype)
 #ifndef _WIN32
-	TEST_ENTRY  (poll_oob)
+  TEST_ENTRY  (poll_oob)
 #endif
 
 #ifdef __linux__
