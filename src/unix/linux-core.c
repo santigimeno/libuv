@@ -109,7 +109,7 @@ int uv__platform_loop_init(uv_loop_t* loop) {
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
   if (loop->inotify_fd == -1) return;
-  uv__io_stop(loop, &loop->inotify_read_watcher, POLLIN | POLLPRI);
+  uv__io_stop(loop, &loop->inotify_read_watcher, POLLIN | UV__POLLPRI);
   uv__close(loop->inotify_fd);
   loop->inotify_fd = -1;
 }
@@ -151,7 +151,7 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   struct uv__epoll_event e;
   int rc;
 
-  e.events = POLLIN | POLLPRI;
+  e.events = POLLIN | UV__POLLPRI;
   e.data = -1;
 
   rc = 0;
@@ -370,7 +370,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * free when we switch over to edge-triggered I/O.
        */
       if (pe->events == POLLERR || pe->events == POLLHUP)
-        pe->events |= w->pevents & (POLLIN | POLLOUT | POLLPRI);
+        pe->events |= w->pevents & (POLLIN | POLLOUT | UV__POLLPRI);
 
       if (pe->events != 0) {
         /* Run signal watchers last.  This also affects child process watchers
@@ -387,7 +387,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | POLLPRI);
+                                 POLLIN | UV__POLLPRI);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;

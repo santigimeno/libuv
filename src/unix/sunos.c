@@ -120,7 +120,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
   if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd,
-                     POLLIN | POLLPRI, 0))
+                     POLLIN | UV__POLLPRI, 0))
     return -errno;
 
   if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
@@ -277,7 +277,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | POLLPRI);
+                                 POLLIN | UV__POLLPRI);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
@@ -477,7 +477,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (first_run) {
     uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
     uv__io_start(handle->loop, &handle->loop->fs_event_watcher,
-                 POLLIN | POLLPRI);
+                 POLLIN | UV__POLLPRI);
   }
 
   return 0;
