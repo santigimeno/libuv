@@ -94,7 +94,7 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
   struct poll_ctl pc;
 
-  pc.events = POLLIN | UV__POLLPRI;
+  pc.events = POLLIN;
   pc.cmd = PS_MOD;  /* Equivalent to PS_ADD if the fd is not in the pollset. */
   pc.fd = fd;
 
@@ -269,8 +269,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (have_signals != 0)
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | UV__POLLPRI);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;

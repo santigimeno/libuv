@@ -151,7 +151,7 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   struct uv__epoll_event e;
   int rc;
 
-  e.events = POLLIN | UV__POLLPRI;
+  e.events = POLLIN;
   e.data = -1;
 
   rc = 0;
@@ -386,8 +386,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (have_signals != 0)
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | UV__POLLPRI);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
