@@ -164,7 +164,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (port_associate(loop->backend_fd, PORT_SOURCE_FD, w->fd, w->pevents, 0))
       abort();
-
     w->events = w->pevents;
   }
 
@@ -476,8 +475,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (first_run) {
     uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
-    uv__io_start(handle->loop, &handle->loop->fs_event_watcher,
-                 POLLIN | UV__POLLPRI);
+    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, POLLIN);
   }
 
   return 0;

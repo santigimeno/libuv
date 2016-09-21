@@ -438,7 +438,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__io_start(handle->loop, &handle->event_watcher, POLLIN | UV__POLLPRI);
+  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
   return 0;
 }
