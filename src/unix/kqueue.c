@@ -57,12 +57,12 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   int rc;
 
   rc = 0;
-  EV_SET(&ev, fd, EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
+  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
   if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
     rc = -errno;
 
 
-  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE | EV_OOBAND, 0, 0, 0);
+  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
   if (rc == 0)
     if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
       abort();
@@ -291,8 +291,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (have_signals != 0)
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher,
-                                 POLLIN | UV__POLLPRI);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
