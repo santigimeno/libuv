@@ -163,6 +163,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (port_associate(loop->backend_fd, PORT_SOURCE_FD, w->fd, w->pevents, 0))
       abort();
+
     w->events = w->pevents;
   }
 

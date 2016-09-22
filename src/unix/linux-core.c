@@ -109,7 +109,7 @@ int uv__platform_loop_init(uv_loop_t* loop) {
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
   if (loop->inotify_fd == -1) return;
-  uv__io_stop(loop, &loop->inotify_read_watcher, POLLIN | UV__POLLPRI);
+  uv__io_stop(loop, &loop->inotify_read_watcher, POLLIN);
   uv__close(loop->inotify_fd);
   loop->inotify_fd = -1;
 }
