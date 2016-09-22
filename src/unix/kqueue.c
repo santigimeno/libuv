@@ -61,7 +61,6 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
     rc = -errno;
 
-
   EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
   if (rc == 0)
     if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
@@ -109,12 +108,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    if (((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) ||
-        ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0)) {
-      if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0)
-        filter = EVFILT_READ;
-      if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0)
-        filter = EV_OOBAND;
+    if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) {
+      filter = EVFILT_READ;
       fflags = 0;
       op = EV_ADD;
 
@@ -136,6 +131,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if ((w->events & POLLOUT) == 0 && (w->pevents & POLLOUT) != 0) {
       EV_SET(events + nevents, w->fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
+
+      if (++nevents == ARRAY_SIZE(events)) {
+        if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
+          abort();
+        nevents = 0;
+      }
+    }
+
+   if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0) {
+      EV_SET(events + nevents, w->fd, EV_OOBAND, EV_ADD, 0, 0, 0);
 
       if (++nevents == ARRAY_SIZE(events)) {
         if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
@@ -243,7 +248,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         if (w->pevents & POLLIN) {
           revents |= POLLIN;
           w->rcount = ev->data;
-        } else if(w->pevents & UV__POLLPRI) {
+        } else if (w->pevents & UV__POLLPRI) {
           revents |= UV__POLLPRI;
           w->rcount = ev->data;
         } else {

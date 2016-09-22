@@ -103,7 +103,7 @@ int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
   int events;
 
   assert((pevents & ~(UV_READABLE | UV_WRITABLE| UV_DISCONNECT |
-    UV_PRIORITIZED)) == 0);
+                      UV_PRIORITIZED)) == 0);
   assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
 
   uv__poll_stop(handle);
