@@ -109,7 +109,7 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 #ifdef POLLPRI
 # define UV__POLLPRI POLLPRI
 #else
-# define UV__POLLPRI 0x0002
+# define UV__POLLPRI 0
 #endif
 
 #if !defined(O_CLOEXEC) && defined(__FreeBSD__)

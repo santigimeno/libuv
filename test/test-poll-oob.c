@@ -55,6 +55,7 @@ static void poll_cb(uv_poll_t* handle, int status, int events) {
   char buffer[5];
   int n;
 
+	printf("%d\n", events & UV_READABLE);
   ASSERT(events & UV_PRIORITIZED);
   n = recv(client_fd, &buffer, 5, MSG_OOB);
   if(errno == EINVAL) {
@@ -66,11 +67,6 @@ static void poll_cb(uv_poll_t* handle, int status, int events) {
 
 static int non_blocking(int fd, int set) {
   int r;
-#ifdef FIONBIO
-  do
-    r = ioctl(client_fd, FIONBIO, &set);
-  while (r == -1 && errno == EINTR);
-#else
   int flags;
 
   do
@@ -92,7 +88,7 @@ static int non_blocking(int fd, int set) {
   do
     r = fcntl(fd, F_SETFL, flags);
   while (r == -1 && errno == EINTR);
-#endif
+
   if (r)
     return -errno;
 
@@ -102,6 +98,7 @@ static int non_blocking(int fd, int set) {
 static void connection_cb(uv_stream_t* handle, int status) {
   uv_os_fd_t server_fd;
   int r;
+	int on = 0;
 
   ASSERT(0 == status);
   ASSERT(0 == uv_accept(handle, (uv_stream_t*) &peer_handle));
@@ -113,9 +110,11 @@ static void connection_cb(uv_stream_t* handle, int status) {
   uv_poll_init(uv_default_loop(), &poll_req, client_fd);
   ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
+	printf("== %d\n", client_fd);
   /* The problem triggers only on a second message, it seem that xnu is not
    * triggering `kevent()` for the first one
    */
+	printf("> %d\n", setsockopt(server_fd, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on)));
   do {
     r = send(server_fd, "hello", 5, MSG_OOB);
   } while (r < 0 && errno == EINTR);
@@ -145,7 +144,7 @@ TEST_IMPL(poll_oob) {
   /* Ensure two separate packets */
   ASSERT(0 == uv_tcp_nodelay(&client_handle, 1));
 
-  client_fd = socket(AF_INET, SOCK_STREAM, 0);
+  client_fd = socket(PF_INET, SOCK_STREAM, 0);
   ASSERT(client_fd >= 0);
   do {
     errno = 0;
