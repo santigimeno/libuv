@@ -55,7 +55,6 @@ static void poll_cb(uv_poll_t* handle, int status, int events) {
   char buffer[5];
   int n;
 
-	printf("%d\n", events & UV_READABLE);
   ASSERT(events & UV_PRIORITIZED);
   n = recv(client_fd, &buffer, 5, MSG_OOB);
   if(errno == EINVAL) {
@@ -110,11 +109,9 @@ static void connection_cb(uv_stream_t* handle, int status) {
   uv_poll_init(uv_default_loop(), &poll_req, client_fd);
   ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
-	printf("== %d\n", client_fd);
   /* The problem triggers only on a second message, it seem that xnu is not
    * triggering `kevent()` for the first one
    */
-	printf("> %d\n", setsockopt(server_fd, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on)));
   do {
     r = send(server_fd, "hello", 5, MSG_OOB);
   } while (r < 0 && errno == EINTR);
