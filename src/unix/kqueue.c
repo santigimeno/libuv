@@ -244,11 +244,22 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       revents = 0;
 
-      if (ev->filter == EVFILT_READ || ev->filter == EV_OOBAND) {
+      if (ev->filter == EVFILT_READ) {
         if (w->pevents & POLLIN) {
           revents |= POLLIN;
           w->rcount = ev->data;
-        } else if (w->pevents & UV__POLLPRI) {
+        } else {
+          /* TODO batch up */
+          struct kevent events[1];
+          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
+            if (errno != ENOENT)
+              abort();
+        }
+      }
+
+      if (ev->filter == EV_OOBAND) {
+        if (w->pevents & UV__POLLPRI) {
           revents |= UV__POLLPRI;
           w->rcount = ev->data;
         } else {
