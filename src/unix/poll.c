@@ -32,7 +32,21 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   int pevents;
 
   handle = container_of(w, uv_poll_t, io_watcher);
+
+#ifdef __linux__
+  /*
+   * As documented in the kernel source fs/kernfs/file.c #780
+   * poll will return POLLERR|POLLPRI in case of sysfs
+   * polling. This does not happen in case of out-of-bound
+   * TCP messages.
+   *
+   * So to properly determine a POLLPRI or a POLLERR we need
+   * to check for both.
+   */
   if ((events & POLLERR) && (events & UV__POLLPRI) != UV__POLLPRI) {
+#else
+  if (events & POLLERR) {
+#endif
     uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
     uv__handle_stop(handle);
     handle->poll_cb(handle, -EBADF, 0);
