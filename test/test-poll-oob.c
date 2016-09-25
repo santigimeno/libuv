@@ -1,4 +1,4 @@
-/* Copyright Fedor Indutny & CurlyMo All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -40,7 +40,7 @@ static const int kMaxTicks = 10;
 static int check = 0;
 
 static void idle_cb(uv_idle_t* idle) {
-  usleep(100);
+  uv_sleep(100);
   if (++ticks < kMaxTicks)
     return;
 
@@ -57,56 +57,24 @@ static void poll_cb(uv_poll_t* handle, int status, int events) {
 
   ASSERT(events & UV_PRIORITIZED);
   n = recv(client_fd, &buffer, 5, MSG_OOB);
-  if(errno == EINVAL) {
+  if(errno == EINVAL || errno == EINTR) {
     return;
   }
-  check = 1;
   ASSERT(n > 0);
-}
-
-static int non_blocking(int fd, int set) {
-  int r;
-  int flags;
-
-  do
-    r = fcntl(fd, F_GETFL);
-  while (r == -1 && errno == EINTR);
-
-  if (r == -1)
-    return -errno;
-
-  /* Bail out now if already set/clear. */
-  if (!!(r & O_NONBLOCK) == !!set)
-    return 0;
-
-  if (set)
-    flags = r | O_NONBLOCK;
-  else
-    flags = r & ~O_NONBLOCK;
-
-  do
-    r = fcntl(fd, F_SETFL, flags);
-  while (r == -1 && errno == EINTR);
-
-  if (r)
-    return -errno;
-
-  return 0;
+  check = 1;
 }
 
 static void connection_cb(uv_stream_t* handle, int status) {
   uv_os_fd_t server_fd;
   int r;
-	int on = 0;
 
   ASSERT(0 == status);
   ASSERT(0 == uv_accept(handle, (uv_stream_t*) &peer_handle));
 
   /* Send some OOB data */
   ASSERT(0 == uv_fileno((uv_handle_t*) &peer_handle, &server_fd));
-  ASSERT(0 == non_blocking(client_fd, 1));
 
-  uv_poll_init(uv_default_loop(), &poll_req, client_fd);
+  ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_req, client_fd));
   ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
   /* The problem triggers only on a second message, it seem that xnu is not
@@ -116,8 +84,6 @@ static void connection_cb(uv_stream_t* handle, int status) {
     r = send(server_fd, "hello", 5, MSG_OOB);
   } while (r < 0 && errno == EINTR);
   ASSERT(5 == r);
-
-  ASSERT(0 == non_blocking(client_fd, 0));
 
   ASSERT(0 == uv_idle_start(&idle, idle_cb));
 }
