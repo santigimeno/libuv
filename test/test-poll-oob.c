@@ -70,16 +70,10 @@ static void connection_cb(uv_stream_t* handle, int status) {
 
   ASSERT(0 == status);
   ASSERT(0 == uv_accept(handle, (uv_stream_t*) &peer_handle));
-
-  /* Send some OOB data */
   ASSERT(0 == uv_fileno((uv_handle_t*) &peer_handle, &server_fd));
-
   ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_req, client_fd));
   ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
 
-  /* The problem triggers only on a second message, it seem that xnu is not
-   * triggering `kevent()` for the first one
-   */
   do {
     r = send(server_fd, "hello", 5, MSG_OOB);
   } while (r < 0 && errno == EINTR);
