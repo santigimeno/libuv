@@ -43,7 +43,7 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    * So to properly determine a POLLPRI or a POLLERR we need
    * to check for both.
    */
-  if ((events & POLLERR) && (events & UV__POLLPRI) != UV__POLLPRI) {
+  if ((events & POLLERR) && !(events & UV__POLLPRI)) {
 #else
   if (events & POLLERR) {
 #endif
