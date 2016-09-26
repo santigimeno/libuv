@@ -28,54 +28,105 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <string.h>
 
 static uv_tcp_t server_handle;
 static uv_tcp_t client_handle;
 static uv_tcp_t peer_handle;
-static uv_poll_t poll_req;
+static uv_poll_t poll_req[2];
 static uv_idle_t idle;
 static uv_os_fd_t client_fd;
+static uv_os_fd_t server_fd;
 static int ticks;
 static const int kMaxTicks = 10;
-static int check = 0;
+static int check[3] = {0};
 
 static void idle_cb(uv_idle_t* idle) {
   uv_sleep(100);
   if (++ticks < kMaxTicks)
     return;
 
-  uv_poll_stop(&poll_req);
+  uv_poll_stop(&poll_req[0]);
+  uv_poll_stop(&poll_req[1]);
   uv_close((uv_handle_t*) &server_handle, NULL);
   uv_close((uv_handle_t*) &client_handle, NULL);
   uv_close((uv_handle_t*) &peer_handle, NULL);
   uv_close((uv_handle_t*) idle, NULL);
 }
 
-static void poll_cb(uv_poll_t* handle, int status, int events) {
+static void poll_cb(uv_poll_t *handle, int status, int events) {
   char buffer[5];
   int n;
+  int fd;
 
-  ASSERT(events & UV_PRIORITIZED);
-  n = recv(client_fd, &buffer, 5, MSG_OOB);
-  if(errno == EINVAL || errno == EINTR) {
-    return;
+  ASSERT(0 == uv_fileno((uv_handle_t*)handle, &fd));
+  memset(buffer, 0, 5);
+
+  if(events & UV_PRIORITIZED) {
+    n = recv(client_fd, &buffer, 5, MSG_OOB);
+    if(errno == EINVAL || errno == EINTR) {
+      return;
+    }
+    ASSERT(n > 0);
+    check[0] = 1;
   }
-  ASSERT(n > 0);
-  check = 1;
+  if(events & UV_READABLE) {
+    if(fd == client_fd) {
+      n = recv(client_fd, &buffer, 5, 0);
+      if(errno == EINVAL || errno == EINTR) {
+        return;
+      }
+      if(check[1] == 1) {
+        ASSERT(strncmp(buffer, "world", n) == 0);
+        ASSERT(5 == n);
+        check[1] = 2;
+      }
+      if(check[1] == 0) {
+        ASSERT(n == 4);
+        ASSERT(strncmp(buffer, "hello", n) == 0);
+        check[1] = 1;
+      }
+    }
+    if(fd == server_fd) {
+      n = recv(server_fd, &buffer, 3, 0);
+      if(errno == EINVAL || errno == EINTR) {
+        return;
+      }
+      ASSERT(3 == n);
+      ASSERT(strncmp(buffer, "foo", n) == 0);
+      check[2] = 1;
+      uv_poll_stop(&poll_req[1]);
+    }
+  }
+  if(events & UV_WRITABLE) {
+    do {
+      n = send(client_fd, "foo", 3, 0);
+    } while (n < 0 && errno == EINTR);
+    ASSERT(3 == n);
+  }
 }
 
 static void connection_cb(uv_stream_t* handle, int status) {
-  uv_os_fd_t server_fd;
   int r;
 
   ASSERT(0 == status);
   ASSERT(0 == uv_accept(handle, (uv_stream_t*) &peer_handle));
   ASSERT(0 == uv_fileno((uv_handle_t*) &peer_handle, &server_fd));
-  ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_req, client_fd));
-  ASSERT(0 == uv_poll_start(&poll_req, UV_PRIORITIZED, poll_cb));
-
+  ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_req[0], client_fd));
+  ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_req[1], server_fd));
+  ASSERT(0 == uv_poll_start(&poll_req[0],
+                            UV_PRIORITIZED | UV_READABLE | UV_WRITABLE,
+                            poll_cb));
+  ASSERT(0 == uv_poll_start(&poll_req[1],
+                            UV_READABLE,
+                            poll_cb));
   do {
     r = send(server_fd, "hello", 5, MSG_OOB);
+  } while (r < 0 && errno == EINTR);
+  ASSERT(5 == r);
+
+  do {
+    r = send(server_fd, "world", 5, 0);
   } while (r < 0 && errno == EINTR);
   ASSERT(5 == r);
 
@@ -112,7 +163,9 @@ TEST_IMPL(poll_oob) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   ASSERT(ticks == kMaxTicks);
-  ASSERT(check == 1);
+  ASSERT(check[0] == 1);
+  ASSERT(check[1] == 2);
+  ASSERT(check[2] == 1);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
