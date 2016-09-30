@@ -43,6 +43,15 @@ static int cli_pr_check = 0;
 static int cli_rd_check = 0;
 static int srv_rd_check = 0;
 
+static int got_eagain(void) {
+  return errno == EAGAIN
+      || errno == EINPROGRESS
+#ifdef EWOULDBLOCK
+      || errno == EWOULDBLOCK
+#endif
+      ;
+}
+
 static void idle_cb(uv_idle_t* idle) {
   uv_sleep(100);
   if (++ticks < kMaxTicks)
@@ -87,6 +96,16 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
         ASSERT(n == 4);
         ASSERT(strncmp(buffer, "hello", n) == 0);
         cli_rd_check = 1;
+        do {
+          n = recv(client_fd, &buffer, 5, 0);
+          if (n > 0) {
+            ASSERT(n == 5);
+            ASSERT(strncmp(buffer, "world", n) == 0);
+            cli_rd_check = 2;
+          }
+        } while (n > 0);
+
+        ASSERT(got_eagain());
       }
     }
     if (fd == server_fd) {

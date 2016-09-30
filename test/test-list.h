@@ -315,7 +315,8 @@ TEST_DECLARE   (thread_rwlock_trylock)
 TEST_DECLARE   (thread_create)
 TEST_DECLARE   (thread_equal)
 TEST_DECLARE   (dlerror)
-#ifndef _WIN32
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__sun)
 TEST_DECLARE   (poll_oob)
 #endif
 TEST_DECLARE   (poll_duplex)
@@ -641,7 +642,8 @@ TASK_LIST_START
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
   TEST_ENTRY  (poll_bad_fdtype)
-#ifndef _WIN32
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__sun)
   TEST_ENTRY  (poll_oob)
 #endif
 
