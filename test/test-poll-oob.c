@@ -92,7 +92,6 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
     if (fd == server_fd) {
       n = recv(server_fd, &buffer, 3, 0);
       if (errno == EINVAL || errno == EINTR) {
-      if (errno == EINVAL || errno == EINTR) {
         return;
       }
       ASSERT(3 == n);
