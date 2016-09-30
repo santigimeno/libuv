@@ -39,7 +39,9 @@ static uv_os_fd_t client_fd;
 static uv_os_fd_t server_fd;
 static int ticks;
 static const int kMaxTicks = 10;
-static int check[3] = {0};
+static int cli_pr_check = 0;
+static int cli_rd_check = 0;
+static int srv_rd_check = 0;
 
 static void idle_cb(uv_idle_t* idle) {
   uv_sleep(100);
@@ -68,7 +70,7 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
       return;
     }
     ASSERT(n > 0);
-    check[0] = 1;
+    cli_pr_check = 1;
   }
   if(events & UV_READABLE) {
     if(fd == client_fd) {
@@ -76,15 +78,15 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
       if(errno == EINVAL || errno == EINTR) {
         return;
       }
-      if(check[1] == 1) {
+      if(cli_rd_check == 1) {
         ASSERT(strncmp(buffer, "world", n) == 0);
         ASSERT(5 == n);
-        check[1] = 2;
+        cli_rd_check = 2;
       }
-      if(check[1] == 0) {
+      if(cli_rd_check == 0) {
         ASSERT(n == 4);
         ASSERT(strncmp(buffer, "hello", n) == 0);
-        check[1] = 1;
+        cli_rd_check = 1;
       }
     }
     if(fd == server_fd) {
@@ -94,7 +96,7 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
       }
       ASSERT(3 == n);
       ASSERT(strncmp(buffer, "foo", n) == 0);
-      check[2] = 1;
+      srv_rd_check = 1;
       uv_poll_stop(&poll_req[1]);
     }
   }
@@ -163,9 +165,17 @@ TEST_IMPL(poll_oob) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   ASSERT(ticks == kMaxTicks);
-  ASSERT(check[0] == 1);
-  ASSERT(check[1] == 2);
-  ASSERT(check[2] == 1);
+
+	/* Did client receive the POLLPRI message */
+  ASSERT(cli_pr_check == 1);
+	/* Did client receive the POLLIN message */
+  ASSERT(cli_rd_check == 2);
+	/* 
+	 * Could we write with POLLOUT and did the
+	 * server receive our POLLOUT message through
+	 * POLLIN.
+	 */
+  ASSERT(srv_rd_check == 1);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
