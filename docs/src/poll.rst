@@ -112,6 +112,7 @@ API
         on the `events` field in the callback.
 
     .. versionchanged:: 1.9.0 Added the UV_DISCONNECT event.
+		.. versionchanged:: 1.10.0 Added the UV_PRIORITIZED event.
 
 .. c:function:: int uv_poll_stop(uv_poll_t* poll)
 
