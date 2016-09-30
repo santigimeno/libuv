@@ -64,34 +64,35 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
   ASSERT(0 == uv_fileno((uv_handle_t*)handle, &fd));
   memset(buffer, 0, 5);
 
-  if(events & UV_PRIORITIZED) {
+  if (events & UV_PRIORITIZED) {
     n = recv(client_fd, &buffer, 5, MSG_OOB);
-    if(errno == EINVAL || errno == EINTR) {
+    if (errno == EINVAL || errno == EINTR) {
       return;
     }
     ASSERT(n > 0);
     cli_pr_check = 1;
   }
-  if(events & UV_READABLE) {
-    if(fd == client_fd) {
+  if (events & UV_READABLE) {
+    if (fd == client_fd) {
       n = recv(client_fd, &buffer, 5, 0);
-      if(errno == EINVAL || errno == EINTR) {
+      if (errno == EINVAL || errno == EINTR) {
         return;
       }
-      if(cli_rd_check == 1) {
+      if (cli_rd_check == 1) {
         ASSERT(strncmp(buffer, "world", n) == 0);
         ASSERT(5 == n);
         cli_rd_check = 2;
       }
-      if(cli_rd_check == 0) {
+      if (cli_rd_check == 0) {
         ASSERT(n == 4);
         ASSERT(strncmp(buffer, "hello", n) == 0);
         cli_rd_check = 1;
       }
     }
-    if(fd == server_fd) {
+    if (fd == server_fd) {
       n = recv(server_fd, &buffer, 3, 0);
-      if(errno == EINVAL || errno == EINTR) {
+      if (errno == EINVAL || errno == EINTR) {
+      if (errno == EINVAL || errno == EINTR) {
         return;
       }
       ASSERT(3 == n);
@@ -100,7 +101,7 @@ static void poll_cb(uv_poll_t *handle, int status, int events) {
       uv_poll_stop(&poll_req[1]);
     }
   }
-  if(events & UV_WRITABLE) {
+  if (events & UV_WRITABLE) {
     do {
       n = send(client_fd, "foo", 3, 0);
     } while (n < 0 && errno == EINTR);
@@ -166,15 +167,13 @@ TEST_IMPL(poll_oob) {
 
   ASSERT(ticks == kMaxTicks);
 
-	/* Did client receive the POLLPRI message */
+  /* Did client receive the POLLPRI message */
   ASSERT(cli_pr_check == 1);
-	/* Did client receive the POLLIN message */
+  /* Did client receive the POLLIN message */
   ASSERT(cli_rd_check == 2);
-	/* 
-	 * Could we write with POLLOUT and did the
-	 * server receive our POLLOUT message through
-	 * POLLIN.
-	 */
+  /* Could we write with POLLOUT and did the server receive our POLLOUT message
+   * through POLLIN.
+   */
   ASSERT(srv_rd_check == 1);
 
   MAKE_VALGRIND_HAPPY();
