@@ -163,6 +163,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
   char buf[1024];
   size_t len;
   int r;
+  size_t i;
   int sock;
   struct sockaddr_un sun;
   socklen_t sun_len;
@@ -188,6 +189,10 @@ TEST_IMPL(pipe_getsockname_abstract) {
   r = uv_pipe_getsockname(&pipe_server, buf, &len);
   ASSERT(r == 0);
 
+  fprintf(stderr, "sockname: %d %d\n", len, sizeof abstract_pipe);
+  for(i=0;i<sizeof abstract_pipe;i++)
+      fprintf(stderr, "%02x %02x\n", buf[i], abstract_pipe[i]);
+
   ASSERT(memcmp(buf, abstract_pipe, sizeof abstract_pipe) == 0);
 
   uv_close((uv_handle_t*)&pipe_server, pipe_close_cb);
@@ -198,7 +203,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
 
   ASSERT(pipe_close_cb_called == 1);
   MAKE_VALGRIND_HAPPY();
-  return 0;
+  return -1;
 #else
   MAKE_VALGRIND_HAPPY();
   return 0;
