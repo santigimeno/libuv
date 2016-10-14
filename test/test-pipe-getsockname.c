@@ -185,6 +185,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
   r = uv_pipe_open(&pipe_server, sock);
   ASSERT(r == 0);
 
+  memset(buf, 0, sizeof buf);
   len = sizeof buf;
   r = uv_pipe_getsockname(&pipe_server, buf, &len);
   ASSERT(r == 0);
