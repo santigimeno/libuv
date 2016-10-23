@@ -38,9 +38,14 @@ RB_HEAD(uv__signal_tree_s, uv_signal_s);
 
 
 static int uv__signal_unlock(void);
+static int uv__signal_start(uv_signal_t* handle,
+                            uv_signal_cb signal_cb,
+                            int signum,
+                            int one_shot);
 static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
+static void uv__signal_unregister_handler(int signum);
 
 
 static uv_once_t uv__signal_global_init_guard = UV_ONCE_INIT;
@@ -167,6 +172,10 @@ static void uv__signal_handler(int signum) {
 
     if (r != -1)
       handle->caught_signals++;
+
+    if ((handle->flags & UV_SIGNAL_ONE_SHOT) &&
+        (uv__signal_first_handle(handle->signum) == NULL))
+      uv__signal_unregister_handler(signum);
   }
 
   uv__signal_unlock();
@@ -285,8 +294,20 @@ void uv__signal_close(uv_signal_t* handle) {
   }
 }
 
-
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
+  return uv__signal_start(handle, signal_cb, signum, 0);
+}
+
+int uv_signal_start_one_shot(uv_signal_t* handle,
+                             uv_signal_cb signal_cb,
+                             int signum) {
+  return uv__signal_start(handle, signal_cb, signum, 1);
+}
+
+static int uv__signal_start(uv_signal_t* handle,
+                            uv_signal_cb signal_cb,
+                            int signum,
+                            int one_shot) {
   sigset_t saved_sigmask;
   int err;
 
@@ -334,6 +355,10 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   uv__signal_unlock_and_unblock(&saved_sigmask);
 
   handle->signal_cb = signal_cb;
+  if (one_shot) {
+    handle->flags |= UV_SIGNAL_ONE_SHOT;
+  }
+
   uv__handle_start(handle);
 
   return 0;
