@@ -34,6 +34,11 @@ static CRITICAL_SECTION uv__signal_lock;
 
 static BOOL WINAPI uv__signal_control_handler(DWORD type);
 
+int uv__signal_start(uv_signal_t* handle,
+                     uv_signal_cb signal_cb,
+                     int signum,
+                     int one_shot);
+
 void uv_signals_init() {
   InitializeCriticalSection(&uv__signal_lock);
   if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
@@ -88,6 +93,8 @@ int uv__signal_dispatch(int signum) {
     }
 
     dispatched = 1;
+    if (handle->flags & UV_SIGNAL_ONE_SHOT)
+      uv_signal_stop(handle);
   }
 
   LeaveCriticalSection(&uv__signal_lock);
@@ -166,6 +173,25 @@ int uv_signal_stop(uv_signal_t* handle) {
 
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
+
+  return uv__signal_start(handle, signal_cb, signum, 0);
+}
+
+
+int uv_signal_start_one_shot(uv_signal_t* handle,
+                             uv_signal_cb signal_cb,
+                             int signum) {
+  return uv__signal_start(handle, signal_cb, signum, 1);
+}
+
+
+int uv__signal_start(uv_signal_t* handle,
+                            uv_signal_cb signal_cb,
+                            int signum,
+                            int one_shot) {
+  int err;
+  uv_signal_t* first_handle;
+
   /* Test for invalid signal values. */
   if (signum != SIGWINCH && (signum <= 0 || signum >= NSIG))
     return UV_EINVAL;
@@ -189,6 +215,9 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   EnterCriticalSection(&uv__signal_lock);
 
   handle->signum = signum;
+  if (one_shot)
+    handle->flags |= UV_SIGNAL_ONE_SHOT;
+
   RB_INSERT(uv_signal_tree_s, &uv__signal_tree, handle);
 
   LeaveCriticalSection(&uv__signal_lock);

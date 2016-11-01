@@ -137,8 +137,7 @@ enum {
   UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
   UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
   UV_UDP_PROCESSING       = 0x20000, /* Handle is running the send callback queue. */
-  UV_HANDLE_BOUND         = 0x40000, /* Handle is bound to an address and port */
-  UV_SIGNAL_ONE_SHOT      = 0x80000  /* On signal reception remove sighandler */
+  UV_HANDLE_BOUND         = 0x40000  /* Handle is bound to an address and port */
 };
 
 /* loop flags */

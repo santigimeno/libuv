@@ -55,12 +55,14 @@ extern int snprintf(char*, size_t, const char*, ...);
 
 #ifndef _WIN32
 enum {
+  UV_SIGNAL_ONE_SHOT  = 0x80000,  /* On signal reception remove sighandler */
   UV__HANDLE_INTERNAL = 0x8000,
   UV__HANDLE_ACTIVE   = 0x4000,
   UV__HANDLE_REF      = 0x2000,
   UV__HANDLE_CLOSING  = 0 /* no-op on unix */
 };
 #else
+# define UV_SIGNAL_ONE_SHOT   0x100
 # define UV__HANDLE_INTERNAL  0x80
 # define UV__HANDLE_ACTIVE    0x40
 # define UV__HANDLE_REF       0x20
