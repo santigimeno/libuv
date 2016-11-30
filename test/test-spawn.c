@@ -215,6 +215,54 @@ TEST_IMPL(spawn_fails_check_for_waitpid_cleanup) {
 #endif
 
 
+#ifdef _WIN32
+TEST_IMPL(spawn_requires_elevation) {
+  int r;
+  uv_fs_t req;
+  uv_loop_t* loop = uv_default_loop();
+  char path[1024];
+  size_t path_size = 1024;
+
+  /* Find helper elevation.exe -- Assumed in same location as test runner */
+  r = uv_exepath(exepath, &exepath_size);
+  ASSERT(r == 0);
+  exepath[exepath_size] = '\0';
+  snprintf(path, path_size, "%s\\..\\elevation.exe", exepath);
+  ASSERT(0 == uv_fs_realpath(loop, &req, path, NULL));
+
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (req.result == UV_ENOSYS) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("realpath is not supported on Windows XP");
+  }
+
+  ASSERT(req.ptr != NULL);
+
+  init_process_options("", fail_cb);
+  options.file = options.args[0] = req.ptr;
+
+  printf("Launching %s\n", (char*) req.ptr);
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  printf("r = %d, %s - %s\n", r, uv_err_name(r), uv_strerror(r));
+
+  /*
+   * Will either succeed or fail depending on whether test is being run with
+   * elevated permissions
+   */
+  ASSERT(r == 0 || r == UV_EACCES);
+  uv_close((uv_handle_t*) &process, NULL);
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  uv_fs_req_cleanup(&req);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
+
 TEST_IMPL(spawn_exit_code) {
   int r;
 

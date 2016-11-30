@@ -230,6 +230,9 @@ TEST_DECLARE   (spawn_fails)
 #ifndef _WIN32
 TEST_DECLARE   (spawn_fails_check_for_waitpid_cleanup)
 #endif
+#ifdef _WIN32
+TEST_DECLARE   (spawn_requires_elevation)
+#endif
 TEST_DECLARE   (spawn_exit_code)
 TEST_DECLARE   (spawn_stdout)
 TEST_DECLARE   (spawn_stdin)
@@ -656,6 +659,9 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_fails)
 #ifndef _WIN32
   TEST_ENTRY  (spawn_fails_check_for_waitpid_cleanup)
+#endif
+#ifdef _WIN32
+  TEST_ENTRY  (spawn_requires_elevation)
 #endif
   TEST_ENTRY  (spawn_exit_code)
   TEST_ENTRY  (spawn_stdout)
