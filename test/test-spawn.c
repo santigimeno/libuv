@@ -288,7 +288,6 @@ TEST_IMPL(spawn_requires_elevation) {
   } else {
     ASSERT(r == UV_EACCES);
   }
-  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   uv_fs_req_cleanup(&req);
 
