@@ -573,13 +573,14 @@
     ['OS=="win"', {
       'targets': [
         {
-          'target_name': 'elevation',
+          'target_name': 'require-elevation',
           'type': 'executable',
           'sources': [
-            'test/elevation.c'
+            'test/require-elevation.c'
           ],
           'msvs_settings': {
             'VCLinkerTool': {
+              'SubSystem': 1, # /subsystem:console
               'UACExecutionLevel': 2, # requireAdministrator
               'UACUIAccess': 'false',
             },

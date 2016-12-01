@@ -216,19 +216,36 @@ TEST_IMPL(spawn_fails_check_for_waitpid_cleanup) {
 
 
 #ifdef _WIN32
+BOOL is_elevated() {
+  BOOL elevated = FALSE;
+  HANDLE h_token = NULL;
+  if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &h_token)) {
+    TOKEN_ELEVATION elevation_token;
+    DWORD cb_size = sizeof(TOKEN_ELEVATION);
+    if (GetTokenInformation(h_token, TokenElevation, &elevation_token, sizeof(elevation_token), &cb_size)) {
+      elevated = elevation_token.TokenIsElevated;
+    }
+  }
+  if (h_token) {
+    CloseHandle(h_token);
+  }
+  return elevated;
+}
+
+
 TEST_IMPL(spawn_requires_elevation) {
   int r;
   uv_fs_t req;
-  uv_loop_t* loop = uv_default_loop();
   char path[1024];
-  size_t path_size = 1024;
+  uv_pipe_t out;
+  uv_stdio_container_t stdio[2];
 
-  /* Find helper elevation.exe -- Assumed in same location as test runner */
+  /* Find helper .exe -- Assumed to be in same location as test runner */
   r = uv_exepath(exepath, &exepath_size);
   ASSERT(r == 0);
   exepath[exepath_size] = '\0';
-  snprintf(path, path_size, "%s\\..\\elevation.exe", exepath);
-  ASSERT(0 == uv_fs_realpath(loop, &req, path, NULL));
+  snprintf(path, sizeof(path), "%s\\..\\require-elevation.exe", exepath);
+  ASSERT(0 == uv_fs_realpath(uv_default_loop(), &req, path, NULL));
 
   /*
    * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
@@ -240,19 +257,37 @@ TEST_IMPL(spawn_requires_elevation) {
 
   ASSERT(req.ptr != NULL);
 
-  init_process_options("", fail_cb);
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  init_process_options("", exit_cb);
   options.file = options.args[0] = req.ptr;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   printf("Launching %s\n", (char*) req.ptr);
   r = uv_spawn(uv_default_loop(), &process, &options);
-  printf("r = %d, %s - %s\n", r, uv_err_name(r), uv_strerror(r));
+  if (r != 0) {
+    printf("r = %d, %s - %s\n", r, uv_err_name(r), uv_strerror(r));
+  }
 
   /*
    * Will either succeed or fail depending on whether test is being run with
    * elevated permissions
    */
-  ASSERT(r == 0 || r == UV_EACCES);
-  uv_close((uv_handle_t*) &process, NULL);
+  if (is_elevated()) {
+    ASSERT(r == 0);
+    r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+    ASSERT(r == 0);
+    ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+    ASSERT(exit_cb_called == 1);
+    ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
+    printf("output is: %s\n", output);
+    ASSERT(strcmp("Hello world\n", output) == 0);
+  } else {
+    ASSERT(r == UV_EACCES);
+  }
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   uv_fs_req_cleanup(&req);

@@ -1,4 +1,5 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -18,6 +19,19 @@
  * IN THE SOFTWARE.
  */
 
+#include <io.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+
 int main(int argc, char **argv) {
-  return 0;
+  /*
+   * libuv currently changes default file reading behavior on Windows so do the 
+   * same to match.
+   * https://github.com/libuv/libuv/issues/840
+   */
+  _setmode(_fileno(stdout), _O_BINARY);
+
+  printf("Hello world\n");
+  return 1;
 }
