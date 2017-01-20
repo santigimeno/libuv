@@ -343,7 +343,7 @@ static int uv__signal_start(uv_signal_t* handle,
    */
   first_handle = uv__signal_first_handle(signum);
   if ((first_handle == NULL) ||
-    (!one_shot && (first_handle->flags & UV_SIGNAL_ONE_SHOT))) {
+      (!one_shot && (first_handle->flags & UV_SIGNAL_ONE_SHOT))) {
     err = uv__signal_register_handler(signum, one_shot);
     if (err) {
       /* Registering the signal handler failed. Must be an invalid signal. */
