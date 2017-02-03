@@ -75,7 +75,9 @@ RB_GENERATE_STATIC(uv_signal_tree_s, uv_signal_s, tree_entry, uv__signal_compare
 int uv__signal_dispatch(int signum) {
   uv_signal_t lookup;
   uv_signal_t* handle;
-  int dispatched = 0;
+  int dispatched;
+
+  dispatched = 0;
 
   EnterCriticalSection(&uv__signal_lock);
 
