@@ -194,9 +194,6 @@ int uv__signal_start(uv_signal_t* handle,
                             uv_signal_cb signal_cb,
                             int signum,
                             int one_shot) {
-  int err;
-  uv_signal_t* first_handle;
-
   /* Test for invalid signal values. */
   if (signum != SIGWINCH && (signum <= 0 || signum >= NSIG))
     return UV_EINVAL;
