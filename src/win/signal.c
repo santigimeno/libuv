@@ -90,13 +90,16 @@ int uv__signal_dispatch(int signum) {
     unsigned long previous = InterlockedExchange(
             (volatile LONG*) &handle->pending_signum, signum);
 
+    if (handle->flags & UV__SIGNAL_ONE_SHOT)
+      continue;
+
     if (!previous) {
       POST_COMPLETION_FOR_REQ(handle->loop, &handle->signal_req);
     }
 
     dispatched = 1;
-    if (handle->flags & UV_SIGNAL_ONE_SHOT)
-      uv_signal_stop(handle);
+    if (handle->flags & UV__SIGNAL_ONE_SHOT)
+      handle->flags |= UV__SIGNAL_ONE_SHOT_DISPATCHED;
   }
 
   LeaveCriticalSection(&uv__signal_lock);
@@ -218,7 +221,7 @@ int uv__signal_start(uv_signal_t* handle,
 
   handle->signum = signum;
   if (one_shot)
-    handle->flags |= UV_SIGNAL_ONE_SHOT;
+    handle->flags |= UV__SIGNAL_ONE_SHOT;
 
   RB_INSERT(uv_signal_tree_s, &uv__signal_tree, handle);
 
@@ -247,6 +250,9 @@ void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
   /* while the signal_req is pending. */
   if (dispatched_signum == handle->signum)
     handle->signal_cb(handle, dispatched_signum);
+
+  if (handle->flags & UV__SIGNAL_ONE_SHOT)
+    uv_signal_stop(handle);
 
   if (handle->flags & UV__HANDLE_CLOSING) {
     /* When it is closing, it must be stopped at this point. */

@@ -343,7 +343,7 @@ static int uv__signal_start(uv_signal_t* handle,
    */
   first_handle = uv__signal_first_handle(signum);
   if ((first_handle == NULL) ||
-      (!one_shot && (first_handle->flags & UV_SIGNAL_ONE_SHOT))) {
+      (!one_shot && (first_handle->flags & UV__SIGNAL_ONE_SHOT))) {
     err = uv__signal_register_handler(signum, one_shot);
     if (err) {
       /* Registering the signal handler failed. Must be an invalid signal. */
@@ -354,7 +354,7 @@ static int uv__signal_start(uv_signal_t* handle,
 
   handle->signum = signum;
   if (one_shot)
-    handle->flags |= UV_SIGNAL_ONE_SHOT;
+    handle->flags |= UV__SIGNAL_ONE_SHOT;
 
   RB_INSERT(uv__signal_tree_s, &uv__signal_tree, handle);
 
@@ -417,7 +417,7 @@ static void uv__signal_event(uv_loop_t* loop,
 
       handle->dispatched_signals++;
 
-      if (handle->flags & UV_SIGNAL_ONE_SHOT) {
+      if (handle->flags & UV__SIGNAL_ONE_SHOT) {
         uv__signal_stop(handle);
       }
 
@@ -459,9 +459,9 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2) {
   if (w1->loop < w2->loop) return -1;
   if (w1->loop > w2->loop) return 1;
 
-  /* Handlers with UV_SIGNAL_ONE_SHOT set should come first */
-  f1 = w1->flags & UV_SIGNAL_ONE_SHOT;
-  f2 = w2->flags & UV_SIGNAL_ONE_SHOT;
+  /* Handlers with UV__SIGNAL_ONE_SHOT set should come first */
+  f1 = w1->flags & UV__SIGNAL_ONE_SHOT;
+  f2 = w2->flags & UV__SIGNAL_ONE_SHOT;
   if (f1 > f2) return -1;
   if (f1 < f2) return 1;
 
@@ -503,8 +503,8 @@ static void uv__signal_stop(uv_signal_t* handle) {
   if (first_handle == NULL) {
     uv__signal_unregister_handler(handle->signum);
   } else {
-    rem_one_shot = handle->flags & UV_SIGNAL_ONE_SHOT;
-    first_one_shot = first_handle->flags & UV_SIGNAL_ONE_SHOT;
+    rem_one_shot = handle->flags & UV__SIGNAL_ONE_SHOT;
+    first_one_shot = first_handle->flags & UV__SIGNAL_ONE_SHOT;
     if (first_one_shot && !rem_one_shot)
       assert(uv__signal_register_handler(handle->signum, 1) == 0);
     else if (!first_one_shot && rem_one_shot)
