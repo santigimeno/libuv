@@ -457,7 +457,7 @@ static ssize_t uv__fs_realpath(uv_fs_t* req) {
     return -1;
   }
 
-  if (realpath(req->path, buf) == NULL) {
+  if (uv__realpath(req->path, buf) == NULL) {
     uv__free(buf);
     return -1;
   }
