@@ -383,6 +383,32 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle,
 }
 
 
+int uv__udp_connect(uv_udp_t* handle,
+                    const struct sockaddr* addr,
+                    unsigned int addrlen) {
+  int err;
+
+  if (handle->flags & UV_UDP_CONNECTED)
+    return -UV_EINVAL;
+
+  err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
+  if (err)
+    return err;
+
+  do {
+    errno = 0;
+    err = connect(handle->io_watcher.fd, addr, addrlen);
+  } while (err == -1 && errno == EINTR);
+
+  if (err == -1)
+    return -errno;
+
+  handle->flags |= UV_UDP_CONNECTED;
+
+  return 0;
+}
+
+
 int uv__udp_send(uv_udp_send_t* req,
                  uv_udp_t* handle,
                  const uv_buf_t bufs[],
