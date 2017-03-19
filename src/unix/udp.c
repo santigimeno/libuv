@@ -419,6 +419,7 @@ int uv__udp_disconnect(uv_udp_t* handle) {
     r = connect(handle->io_watcher.fd, &addr, sizeof(addr));
   } while (r == -1 && errno == EINTR);
 
+  /* EAFNOSUPPORT is a valid errno value */
   if (r == -1 && errno != EAFNOSUPPORT)
     return -errno;
 

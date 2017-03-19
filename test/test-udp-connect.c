@@ -26,24 +26,125 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define CHECK_HANDLE(handle) \
+  ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
+
+static uv_udp_t server;
+static uv_udp_t client;
+
+static int cl_send_cb_called;
+static int cl_recv_cb_called;
+
+static int sv_send_cb_called;
+static int sv_recv_cb_called;
+
+static int close_cb_called;
+
+
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
+  static char slab[65536];
+  CHECK_HANDLE(handle);
+  ASSERT(suggested_size <= sizeof(slab));
+  buf->base = slab;
+  buf->len = sizeof(slab);
+}
+
+
+static void close_cb(uv_handle_t* handle) {
+  CHECK_HANDLE(handle);
+  ASSERT(uv_is_closing(handle));
+  close_cb_called++;
+}
+
+
+static void sv_recv_cb(uv_udp_t* handle,
+                       ssize_t nread,
+                       const uv_buf_t* rcvbuf,
+                       const struct sockaddr* addr,
+                       unsigned flags) {
+  ASSERT(nread > 0);
+
+  if (nread == 0) {
+    ASSERT(addr == NULL);
+    return;
+  }
+
+  ASSERT(nread == 4);
+  ASSERT(addr != NULL);
+
+  ASSERT(memcmp("EXIT", rcvbuf->base, nread) == 0);
+  uv_close((uv_handle_t*) handle, close_cb);
+  uv_close((uv_handle_t*) &client, close_cb);
+
+  sv_recv_cb_called++;
+}
+
+static void sv_send_cb(uv_udp_send_t* req, int status) {
+  ASSERT(req != NULL);
+  ASSERT(status == 0);
+  CHECK_HANDLE(req->handle);
+
+  uv_close((uv_handle_t*) req->handle, close_cb);
+  free(req);
+
+  sv_send_cb_called++;
+}
+
 
 TEST_IMPL(udp_connect) {
+  struct sockaddr_in6 addr6;
   struct sockaddr_in addr;
+  struct sockaddr_in addr2;
   uv_loop_t* loop;
-  uv_udp_t handle;
+  uv_buf_t buf;
+  uv_udp_send_t req;
   int r;
 
+  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr6));
   ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip4_addr("8.8.8.8", TEST_PORT, &addr2));
 
   loop = uv_default_loop();
 
-  r = uv_udp_init(loop, &handle);
+  r = uv_udp_init(loop, &server);
   ASSERT(r == 0);
 
-  r = uv_udp_connect(&handle, (const struct sockaddr*) &addr);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
-  r = uv_udp_disconnect(&handle);
+  r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
+  ASSERT(r == 0);
+
+  r = uv_udp_init(loop, &client);
+  ASSERT(r == 0);
+
+  r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
+  ASSERT(r == 0);
+
+  /* client sends "PING", expects "PONG" */
+  buf = uv_buf_init("PING", 4);
+
+  r = uv_udp_send2(&req,
+                   &client,
+                   &buf,
+                   1,
+                   sv_send_cb
+                 );
+  fprintf(stderr, "r: %d\n", r);
+  ASSERT(r == 0);
+
+  r = uv_udp_connect(&client, (const struct sockaddr*) &addr2);
+  ASSERT(r == 0);
+
+  r = uv_udp_connect(&client, (const struct sockaddr*) &addr6);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_udp_disconnect(&client);
+  ASSERT(r == 0);
+
+  r = uv_udp_disconnect(&client);
   ASSERT(r == UV_EINVAL);
 
   r = uv_run(loop, UV_RUN_DEFAULT);

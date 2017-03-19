@@ -302,19 +302,37 @@ int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
 
 
 int uv_udp_disconnect(uv_udp_t* handle) {
-  if (handle->flags & UV__UDP_CONNECTED)
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (!(handle->flags & UV__UDP_CONNECTED))
     return UV_EINVAL;
 
   return uv__udp_disconnect(handle);
 }
 
 
-int uv_udp_send(uv_udp_send_t* req,
+int uv_udp_send2(uv_udp_send_t* req,
                 uv_udp_t* handle,
                 const uv_buf_t bufs[],
                 unsigned int nbufs,
-                const struct sockaddr* addr,
                 uv_udp_send_cb send_cb) {
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (!(handle->flags & UV__UDP_CONNECTED))
+    return UV_EINVAL;
+
+  return uv_udp_send(req, handle, bufs, nbufs, NULL, send_cb);
+}
+
+
+int uv_udp_send(uv_udp_send_t* req,
+                  uv_udp_t* handle,
+                  const uv_buf_t bufs[],
+                  unsigned int nbufs,
+                  const struct sockaddr* addr,
+                  uv_udp_send_cb send_cb) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
@@ -325,6 +343,9 @@ int uv_udp_send(uv_udp_send_t* req,
   else if (addr->sa_family == AF_INET6)
     addrlen = sizeof(struct sockaddr_in6);
   else
+    return UV_EINVAL;
+
+  if (handle->flags & UV__UDP_CONNECTED)
     return UV_EINVAL;
 
   return uv__udp_send(req, handle, bufs, nbufs, addr, addrlen, send_cb);
