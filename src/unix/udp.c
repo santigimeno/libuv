@@ -388,7 +388,7 @@ int uv__udp_connect(uv_udp_t* handle,
                     unsigned int addrlen) {
   int err;
 
-  if (handle->flags & UV_UDP_CONNECTED)
+  if (handle->flags & UV__UDP_CONNECTED)
     return -UV_EINVAL;
 
   err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
@@ -403,7 +403,7 @@ int uv__udp_connect(uv_udp_t* handle,
   if (err == -1)
     return -errno;
 
-  handle->flags |= UV_UDP_CONNECTED;
+  handle->flags |= UV__UDP_CONNECTED;
 
   return 0;
 }

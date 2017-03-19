@@ -47,12 +47,14 @@
 
 #ifndef _WIN32
 enum {
+  UV__UDP_CONNECTED   = 0x100000,
   UV__HANDLE_INTERNAL = 0x8000,
   UV__HANDLE_ACTIVE   = 0x4000,
   UV__HANDLE_REF      = 0x2000,
   UV__HANDLE_CLOSING  = 0 /* no-op on unix */
 };
 #else
+# define UV__UDP_CONNECTED    0x400
 # define UV__HANDLE_INTERNAL  0x80
 # define UV__HANDLE_ACTIVE    0x40
 # define UV__HANDLE_REF       0x20
