@@ -621,6 +621,7 @@ UV_EXTERN int uv_udp_set_multicast_interface(uv_udp_t* handle,
 UV_EXTERN int uv_udp_set_broadcast(uv_udp_t* handle, int on);
 UV_EXTERN int uv_udp_set_ttl(uv_udp_t* handle, int ttl);
 UV_EXTERN int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr);
+UV_EXTERN int uv_udp_disconnect(uv_udp_t* handle);
 UV_EXTERN int uv_udp_send(uv_udp_send_t* req,
                           uv_udp_t* handle,
                           const uv_buf_t bufs[],

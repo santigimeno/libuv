@@ -43,6 +43,9 @@ TEST_IMPL(udp_connect) {
   r = uv_udp_connect(&handle, (const struct sockaddr*) &addr);
   ASSERT(r == 0);
 
+  r = uv_udp_disconnect(&handle);
+  ASSERT(r == UV_EINVAL);
+
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 

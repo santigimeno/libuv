@@ -388,9 +388,6 @@ int uv__udp_connect(uv_udp_t* handle,
                     unsigned int addrlen) {
   int err;
 
-  if (handle->flags & UV__UDP_CONNECTED)
-    return -UV_EINVAL;
-
   err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
   if (err)
     return err;
@@ -405,6 +402,27 @@ int uv__udp_connect(uv_udp_t* handle,
 
   handle->flags |= UV__UDP_CONNECTED;
 
+  return 0;
+}
+
+
+int uv__udp_disconnect(uv_udp_t* handle) {
+
+  int r;
+  struct sockaddr addr;
+
+  memset(&addr, 0, sizeof addr);
+  addr.sa_family = AF_UNSPEC;
+
+  do {
+    errno = 0;
+    r = connect(handle->io_watcher.fd, &addr, sizeof(addr));
+  } while (r == -1 && errno == EINTR);
+
+  if (r == -1 && errno != EAFNOSUPPORT)
+    return -errno;
+
+  handle->flags &= ~UV__UDP_CONNECTED;
   return 0;
 }
 

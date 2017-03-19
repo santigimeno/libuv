@@ -85,6 +85,8 @@ int uv__udp_connect(uv_udp_t* handle,
                     const struct sockaddr* addr,
                     unsigned int addrlen);
 
+int uv__udp_disconnect(uv_udp_t* handle);
+
 int uv__udp_send(uv_udp_send_t* req,
                  uv_udp_t* handle,
                  const uv_buf_t bufs[],
