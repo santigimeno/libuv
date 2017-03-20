@@ -383,13 +383,13 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle,
 }
 
 
-int uv__udp_send(uv_udp_send_t* req,
-                 uv_udp_t* handle,
-                 const uv_buf_t bufs[],
-                 unsigned int nbufs,
-                 const struct sockaddr* addr,
-                 unsigned int addrlen,
-                 uv_udp_send_cb send_cb) {
+int uv__udp_sendto(uv_udp_send_t* req,
+                   uv_udp_t* handle,
+                   const uv_buf_t bufs[],
+                   unsigned int nbufs,
+                   const struct sockaddr* addr,
+                   unsigned int addrlen,
+                   uv_udp_send_cb send_cb) {
   int err;
   int empty_queue;
 
@@ -437,11 +437,11 @@ int uv__udp_send(uv_udp_send_t* req,
 }
 
 
-int uv__udp_try_send(uv_udp_t* handle,
-                     const uv_buf_t bufs[],
-                     unsigned int nbufs,
-                     const struct sockaddr* addr,
-                     unsigned int addrlen) {
+int uv__udp_try_sendto(uv_udp_t* handle,
+                       const uv_buf_t bufs[],
+                       unsigned int nbufs,
+                       const struct sockaddr* addr,
+                       unsigned int addrlen) {
   int err;
   struct msghdr h;
   ssize_t size;

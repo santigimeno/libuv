@@ -79,19 +79,19 @@ int uv__udp_bind(uv_udp_t* handle,
                  unsigned int  addrlen,
                  unsigned int flags);
 
-int uv__udp_send(uv_udp_send_t* req,
-                 uv_udp_t* handle,
-                 const uv_buf_t bufs[],
-                 unsigned int nbufs,
-                 const struct sockaddr* addr,
-                 unsigned int addrlen,
-                 uv_udp_send_cb send_cb);
+int uv__udp_sendto(uv_udp_send_t* req,
+                   uv_udp_t* handle,
+                   const uv_buf_t bufs[],
+                   unsigned int nbufs,
+                   const struct sockaddr* addr,
+                   unsigned int addrlen,
+                   uv_udp_send_cb send_cb);
 
-int uv__udp_try_send(uv_udp_t* handle,
-                     const uv_buf_t bufs[],
-                     unsigned int nbufs,
-                     const struct sockaddr* addr,
-                     unsigned int addrlen);
+int uv__udp_try_sendto(uv_udp_t* handle,
+                       const uv_buf_t bufs[],
+                       unsigned int nbufs,
+                       const struct sockaddr* addr,
+                       unsigned int addrlen);
 
 int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloccb,
                        uv_udp_recv_cb recv_cb);

@@ -284,12 +284,12 @@ int uv_tcp_connect(uv_connect_t* req,
 }
 
 
-int uv_udp_send(uv_udp_send_t* req,
-                uv_udp_t* handle,
-                const uv_buf_t bufs[],
-                unsigned int nbufs,
-                const struct sockaddr* addr,
-                uv_udp_send_cb send_cb) {
+int uv_udp_sendto(uv_udp_send_t* req,
+                  uv_udp_t* handle,
+                  const uv_buf_t bufs[],
+                  unsigned int nbufs,
+                  const struct sockaddr* addr,
+                  uv_udp_send_cb send_cb) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
@@ -302,14 +302,14 @@ int uv_udp_send(uv_udp_send_t* req,
   else
     return UV_EINVAL;
 
-  return uv__udp_send(req, handle, bufs, nbufs, addr, addrlen, send_cb);
+  return uv__udp_sendto(req, handle, bufs, nbufs, addr, addrlen, send_cb);
 }
 
 
-int uv_udp_try_send(uv_udp_t* handle,
-                    const uv_buf_t bufs[],
-                    unsigned int nbufs,
-                    const struct sockaddr* addr) {
+int uv_udp_try_sendto(uv_udp_t* handle,
+                      const uv_buf_t bufs[],
+                      unsigned int nbufs,
+                      const struct sockaddr* addr) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
@@ -322,7 +322,7 @@ int uv_udp_try_send(uv_udp_t* handle,
   else
     return UV_EINVAL;
 
-  return uv__udp_try_send(handle, bufs, nbufs, addr, addrlen);
+  return uv__udp_try_sendto(handle, bufs, nbufs, addr, addrlen);
 }
 
 
