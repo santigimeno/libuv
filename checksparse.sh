@@ -165,6 +165,7 @@ test/test-timer-again.c
 test/test-timer.c
 test/test-tmpdir.c
 test/test-tty.c
+test/test-udp-connect.c
 test/test-udp-dgram-too-big.c
 test/test-udp-ipv6.c
 test/test-udp-multicast-join.c
