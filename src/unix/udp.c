@@ -383,6 +383,17 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle,
 }
 
 
+int uv__udp_connect(uv_udp_t* handle,
+                    const struct sockaddr* addr,
+                    unsigned int addrlen) {
+  int err;
+
+  err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
+  if (err)
+    return err;
+}
+
+
 int uv__udp_sendto(uv_udp_send_t* req,
                    uv_udp_t* handle,
                    const uv_buf_t bufs[],
