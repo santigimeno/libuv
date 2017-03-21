@@ -105,15 +105,15 @@ TEST_IMPL(udp_connect) {
 
   ASSERT(0 == uv_ip4_addr("10.0.10.10", TEST_PORT, &addr));
 
-  buf = uv_buf_init(buffer, sizeof(buffer));
-  r = uv_udp_try_sendto(&client, &buf, 1, (const struct sockaddr*) &addr);
-  ASSERT(r == UV_EMSGSIZE);
-
-  r = uv_udp_disconnect(&client);
-  ASSERT(r == 0);
-
-  r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
-  ASSERT(r == 0);
+  // buf = uv_buf_init(buffer, sizeof(buffer));
+  // r = uv_udp_try_sendto(&client, &buf, 1, (const struct sockaddr*) &addr);
+  // ASSERT(r == UV_EMSGSIZE);
+  //
+  // r = uv_udp_disconnect(&client);
+  // ASSERT(r == 0);
+  //
+  // r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
+  // ASSERT(r == 0);
 
   buf = uv_buf_init("EXIT", 4);
   r = uv_udp_try_sendto(&client, &buf, 1, (const struct sockaddr*) &addr);

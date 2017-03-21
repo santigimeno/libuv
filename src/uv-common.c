@@ -304,9 +304,8 @@ int uv_udp_disconnect(uv_udp_t* handle) {
   if (handle->type != UV_UDP)
     return UV_EINVAL;
 
-  if (!(handle->flags & UV__UDP_CONNECTED)) {
+  if (!(handle->flags & UV__UDP_CONNECTED))
     return UV_EINVAL;
-  }
 
   return uv__udp_disconnect(handle);
 }
@@ -321,6 +320,9 @@ int uv_udp_sendto(uv_udp_send_t* req,
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (handle->flags & UV__UDP_CONNECTED)
     return UV_EINVAL;
 
   if (addr->sa_family == AF_INET)
@@ -341,6 +343,9 @@ int uv_udp_try_sendto(uv_udp_t* handle,
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (handle->flags & UV__UDP_CONNECTED)
     return UV_EINVAL;
 
   if (addr->sa_family == AF_INET)
