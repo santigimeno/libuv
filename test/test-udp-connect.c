@@ -60,13 +60,6 @@ static void sv_recv_cb(uv_udp_t* handle,
                        const uv_buf_t* rcvbuf,
                        const struct sockaddr* addr,
                        unsigned flags) {
-  ASSERT(nread > 0);
-
-  if (nread == 0) {
-    ASSERT(addr == NULL);
-    return;
-  }
-
   ASSERT(nread == 4);
   ASSERT(addr != NULL);
 
@@ -95,7 +88,7 @@ TEST_IMPL(udp_connect) {
   r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
   ASSERT(r == 0);
 
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip4_addr("8.8.8.8", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
@@ -103,19 +96,24 @@ TEST_IMPL(udp_connect) {
   r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
   ASSERT(r == 0);
 
-  ASSERT(0 == uv_ip4_addr("10.0.10.10", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  // buf = uv_buf_init(buffer, sizeof(buffer));
-  // r = uv_udp_try_sendto(&client, &buf, 1, (const struct sockaddr*) &addr);
-  // ASSERT(r == UV_EMSGSIZE);
-  //
-  // r = uv_udp_disconnect(&client);
-  // ASSERT(r == 0);
-  //
-  // r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
-  // ASSERT(r == 0);
+  r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_udp_disconnect(&client);
+  ASSERT(r == 0);
+
+  r = uv_udp_disconnect(&client);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_udp_connect(&client, (const struct sockaddr*) &addr);
+  ASSERT(r == 0);
 
   buf = uv_buf_init("EXIT", 4);
+  r = uv_udp_try_sendto(&client, &buf, 1, (const struct sockaddr*) &addr);
+  ASSERT(r == UV_EINVAL);
+
   r = uv_udp_try_send(&client, &buf, 1);
   ASSERT(r == 4);
 
