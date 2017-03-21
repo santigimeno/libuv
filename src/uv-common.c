@@ -290,6 +290,9 @@ int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
   if (handle->type != UV_UDP)
     return UV_EINVAL;
 
+  if (handle->flags & UV__UDP_CONNECTED)
+    return UV_EINVAL;
+
   if (addr->sa_family == AF_INET)
     addrlen = sizeof(struct sockaddr_in);
   else if (addr->sa_family == AF_INET6)
