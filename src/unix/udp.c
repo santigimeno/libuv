@@ -391,6 +391,15 @@ int uv__udp_connect(uv_udp_t* handle,
   err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
   if (err)
     return err;
+
+  err = connect(handle->io_watcher.fd, addr, addrlen);
+  if (err) {
+    return -err;
+  }
+
+  handle->flags |= UV__UDP_CONNECTED;
+
+  return 0;
 }
 
 
