@@ -300,6 +300,17 @@ int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
   return uv__udp_connect(handle, addr, addrlen);
 }
 
+int uv_udp_disconnect(uv_udp_t* handle) {
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (!(handle->flags & UV__UDP_CONNECTED)) {
+    return UV_EINVAL;
+  }
+
+  return uv__udp_disconnect(handle);
+}
+
 
 int uv_udp_sendto(uv_udp_send_t* req,
                   uv_udp_t* handle,

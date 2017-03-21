@@ -47,7 +47,7 @@
 
 #ifndef _WIN32
 enum {
-  UV__UDP_CONNECTED   = 0x20000,
+  UV__UDP_CONNECTED   = 0x200000,
   UV__HANDLE_INTERNAL = 0x8000,
   UV__HANDLE_ACTIVE   = 0x4000,
   UV__HANDLE_REF      = 0x2000,
@@ -84,6 +84,8 @@ int uv__udp_bind(uv_udp_t* handle,
 int uv__udp_connect(uv_udp_t* handle,
                     const struct sockaddr* addr,
                     unsigned int addrlen);
+
+int uv__udp_disconnect(uv_udp_t* handle);
 
 int uv__udp_sendto(uv_udp_send_t* req,
                    uv_udp_t* handle,
