@@ -311,6 +311,22 @@ int uv_udp_disconnect(uv_udp_t* handle) {
 }
 
 
+int uv_udp_send(uv_udp_send_t* req,
+                uv_udp_t* handle,
+                const uv_buf_t bufs[],
+                unsigned int nbufs,
+                uv_udp_send_cb send_cb) {
+
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (!(handle->flags & UV__UDP_CONNECTED))
+    return UV_EINVAL;
+
+  return uv__udp_sendto(req, handle, bufs, nbufs, NULL, 0, send_cb);
+}
+
+
 int uv_udp_sendto(uv_udp_send_t* req,
                   uv_udp_t* handle,
                   const uv_buf_t bufs[],
@@ -333,6 +349,19 @@ int uv_udp_sendto(uv_udp_send_t* req,
     return UV_EINVAL;
 
   return uv__udp_sendto(req, handle, bufs, nbufs, addr, addrlen, send_cb);
+}
+
+
+int uv_udp_try_send(uv_udp_t* handle,
+                    const uv_buf_t bufs[],
+                    unsigned int nbufs) {
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (!(handle->flags & UV__UDP_CONNECTED))
+    return UV_EINVAL;
+
+  return uv__udp_try_sendto(handle, bufs, nbufs, NULL, 0);
 }
 
 

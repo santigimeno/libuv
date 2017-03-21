@@ -440,9 +440,13 @@ int uv__udp_sendto(uv_udp_send_t* req,
 
   assert(nbufs > 0);
 
-  err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
-  if (err)
-    return err;
+  if (addr) {
+    err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
+    if (err)
+      return err;
+  } else {
+    assert(handle->flags & UV__UDP_CONNECTED);
+  }
 
   /* It's legal for send_queue_count > 0 even when the write_queue is empty;
    * it means there are error-state requests in the write_completed_queue that
@@ -497,9 +501,13 @@ int uv__udp_try_sendto(uv_udp_t* handle,
   if (handle->send_queue_count != 0)
     return -EAGAIN;
 
-  err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
-  if (err)
-    return err;
+  if (addr) {
+    err = uv__udp_maybe_deferred_bind(handle, addr->sa_family, 0);
+    if (err)
+      return err;
+  } else {
+    assert(handle->flags & UV__UDP_CONNECTED);
+  }
 
   memset(&h, 0, sizeof h);
   h.msg_name = (struct sockaddr*) addr;
