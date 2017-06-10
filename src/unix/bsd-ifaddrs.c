@@ -50,6 +50,17 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent) {
   return 0;
 }
 
+static int uv__ifphys_exclude(struct ifaddrs *ent) {
+  if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
+    return 1;
+  if (ent->ifa_addr == NULL)
+    return 1;
+  if (ent->ifa_addr->sa_family != AF_LINK)
+    return 1;
+
+    return 0;
+}
+
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
@@ -102,7 +113,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Fill in physical addresses for each interface */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (uv__ifaddr_exclude(ent))
+    if (uv__ifphys_exclude(ent))
       continue;
 
     address = *addresses;
