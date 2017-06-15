@@ -32,8 +32,8 @@
 #endif
 
 typedef enum {
-    UV__EXCLUDE_IFPHYS = 0,
-    UV__EXCLUDE_IFADDR = 1
+  UV__EXCLUDE_IFPHYS = 0,
+  UV__EXCLUDE_IFADDR = 1
 } uv__exclude_type;
 
 static int uv__ifaddr_exclude(struct ifaddrs *ent, uv__exclude_type type) {

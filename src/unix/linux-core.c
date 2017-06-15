@@ -74,8 +74,8 @@
 #endif
 
 typedef enum {
-    UV__EXCLUDE_IFPHYS = 0,
-    UV__EXCLUDE_IFADDR = 1
+  UV__EXCLUDE_IFPHYS = 0,
+  UV__EXCLUDE_IFADDR = 1
 } uv__exclude_type;
 
 static int read_models(unsigned int numcpus, uv_cpu_info_t* ci);
