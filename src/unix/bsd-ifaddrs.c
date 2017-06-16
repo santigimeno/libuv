@@ -31,29 +31,29 @@
 #include <net/if_dl.h>
 #endif
 
-typedef enum {
-  UV__EXCLUDE_IFPHYS = 0,
-  UV__EXCLUDE_IFADDR = 1
-} uv__exclude_type;
-
-static int uv__ifaddr_exclude(struct ifaddrs *ent, uv__exclude_type type) {
+static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
   if (ent->ifa_addr == NULL)
     return 1;
+  /*
+   * Just see whether sa_family equals to AF_LINK or not if exclude_type is
+   * UV__EXCLUDE_IFPHYS
+   */
+  if (exclude_type == UV__EXCLUDE_IFPHYS)
+    return (ent->ifa_addr->sa_family != AF_LINK);
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
   /*
    * On BSD getifaddrs returns information related to the raw underlying
    * devices.  We're not interested in this information.
    */
   if (ent->ifa_addr->sa_family == AF_LINK)
-    return !!(int)type;
-  return !(int)type;
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-  if (type == UV__EXCLUDE_IFADDR && ent->ifa_addr->sa_family != PF_INET)
     return 1;
-  return type == UV__EXCLUDE_IFADDR ? 0 : (ent->ifa_addr->sa_family != AF_LINK);
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+  if (ent->ifa_addr->sa_family != PF_INET)
+    return 1;
 #endif
+  return 0;
 }
 
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {

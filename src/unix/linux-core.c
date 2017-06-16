@@ -73,11 +73,6 @@
 # define CLOCK_BOOTTIME 7
 #endif
 
-typedef enum {
-  UV__EXCLUDE_IFPHYS = 0,
-  UV__EXCLUDE_IFADDR = 1
-} uv__exclude_type;
-
 static int read_models(unsigned int numcpus, uv_cpu_info_t* ci);
 static int read_times(FILE* statfile_fp,
                       unsigned int numcpus,
@@ -842,7 +837,7 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   uv__free(cpu_infos);
 }
 
-static int uv__ifaddr_exclude(struct ifaddrs *ent, uv__exclude_type type) {
+static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
   if (ent->ifa_addr == NULL)
@@ -852,8 +847,8 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, uv__exclude_type type) {
    * devices. We're not interested in this information yet.
    */
   if (ent->ifa_addr->sa_family == PF_PACKET)
-    return (int)type; 
-  return !(int)type;
+    return exclude_type; 
+  return !exclude_type;
 }
 
 int uv_interface_addresses(uv_interface_address_t** addresses,
