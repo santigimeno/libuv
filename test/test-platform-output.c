@@ -23,18 +23,52 @@
 #include "task.h"
 #include <string.h>
 
+static uv_process_t process;
+static uv_process_options_t options;
+#define OUTPUT_SIZE 4096
+static char output[OUTPUT_SIZE];
+static int output_used;
+
+
+static void close_cb(uv_handle_t* handle) {}
+static void exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
+  uv_close((uv_handle_t*)process, close_cb);
+}
+
+static void on_alloc(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
+  buf->base = output + output_used;
+  buf->len = OUTPUT_SIZE - output_used;
+}
+
+
+static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
+  if (nread > 0) {
+    output_used += nread;
+  } else if (nread < 0) {
+    ASSERT(nread == UV_EOF);
+    uv_close((uv_handle_t*)tcp, close_cb);
+  }
+}
+
 
 TEST_IMPL(platform_output) {
   char buffer[512];
   size_t rss;
   size_t size;
   double uptime;
+  uv_pipe_t out;
+  uv_stdio_container_t stdio[2];
   uv_rusage_t rusage;
   uv_cpu_info_t* cpus;
   uv_interface_address_t* interfaces;
   uv_passwd_t pwd;
   int count;
   int i;
+  int r;
   int err;
 
   err = uv_get_process_title(buffer, sizeof(buffer));
@@ -101,18 +135,45 @@ TEST_IMPL(platform_output) {
   err = uv_interface_addresses(&interfaces, &count);
   ASSERT(err == 0);
 
+  // get real IP. 
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
+#ifdef _WIN32
+  options.file = "ipconfig";
+#else
+  options.file = "ifconfig";
+#endif
+  options.args = 0;
+  options.flags = 0;
+  options.exit_cb = exit_cb;
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT(r == 0);
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+  ASSERT(r == 0);
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
   printf("uv_interface_addresses:\n");
   for (i = 0; i < count; i++) {
+    char ether[18];
     printf("  name: %s\n", interfaces[i].name);
     printf("  internal: %d\n", interfaces[i].is_internal);
     printf("  physical address: ");
-    printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
+    sprintf(ether, "%02x:%02x:%02x:%02x:%02x:%02x",
            (unsigned char)interfaces[i].phys_addr[0],
            (unsigned char)interfaces[i].phys_addr[1],
            (unsigned char)interfaces[i].phys_addr[2],
            (unsigned char)interfaces[i].phys_addr[3],
            (unsigned char)interfaces[i].phys_addr[4],
            (unsigned char)interfaces[i].phys_addr[5]);
+    printf("%s\n", ether);
+
+    if (strcmp(ether, "00:00:00:00:00:00") != 0)
+      ASSERT(strstr(output, ether) != 0);
 
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, buffer, sizeof(buffer));
@@ -120,7 +181,7 @@ TEST_IMPL(platform_output) {
       uv_ip6_name(&interfaces[i].address.address6, buffer, sizeof(buffer));
     }
 
-    printf("  address: %s\n", buffer);
+    printf("  address: %s\n", buffer); 
 
     if (interfaces[i].netmask.netmask4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].netmask.netmask4, buffer, sizeof(buffer));
