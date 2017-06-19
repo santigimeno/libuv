@@ -37,8 +37,9 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (ent->ifa_addr == NULL)
     return 1;
   /*
-   * Just see whether sa_family equals to AF_LINK or not if exclude_type is
-   * UV__EXCLUDE_IFPHYS
+   * If `exclude_type` is `UV__EXCLUDE_IFPHYS`, just see whether `sa_family`
+   * equals to `AF_LINK` or not. Otherwise, the result depends on the operation
+   * system with `AF_LINK` or `PF_INET`.
    */
   if (exclude_type == UV__EXCLUDE_IFPHYS)
     return (ent->ifa_addr->sa_family != AF_LINK);
