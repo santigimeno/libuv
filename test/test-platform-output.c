@@ -28,6 +28,7 @@ static uv_process_options_t options;
 #define OUTPUT_SIZE 4096
 static char output[OUTPUT_SIZE];
 static int output_used;
+static char* args[2];
 
 
 static void close_cb(uv_handle_t* handle) {}
@@ -135,7 +136,7 @@ TEST_IMPL(platform_output) {
   err = uv_interface_addresses(&interfaces, &count);
   ASSERT(err == 0);
 
-  // get real IP. 
+  // get real IP.
   uv_pipe_init(uv_default_loop(), &out, 0);
   options.stdio = stdio;
   options.stdio[0].flags = UV_IGNORE;
@@ -145,9 +146,11 @@ TEST_IMPL(platform_output) {
 #ifdef _WIN32
   options.file = "ipconfig";
 #else
-  options.file = "ifconfig";
+  options.file = "ip";
 #endif
-  options.args = 0;
+  args[0] = "ip";
+  args[1] = "address";
+  options.args = args;
   options.flags = 0;
   options.exit_cb = exit_cb;
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -181,7 +184,7 @@ TEST_IMPL(platform_output) {
       uv_ip6_name(&interfaces[i].address.address6, buffer, sizeof(buffer));
     }
 
-    printf("  address: %s\n", buffer); 
+    printf("  address: %s\n", buffer);
 
     if (interfaces[i].netmask.netmask4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].netmask.netmask4, buffer, sizeof(buffer));
@@ -207,3 +210,4 @@ TEST_IMPL(platform_output) {
 
   return 0;
 }
+
