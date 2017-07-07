@@ -175,6 +175,7 @@ TEST_IMPL(platform_output) {
            (unsigned char)interfaces[i].phys_addr[5]);
     printf("%s\n", ether);
 
+    printf("%s", output);
     if (strcmp(ether, "00:00:00:00:00:00") != 0)
       ASSERT(strstr(output, ether) != 0);
 
@@ -210,4 +211,3 @@ TEST_IMPL(platform_output) {
 
   return 0;
 }
-
