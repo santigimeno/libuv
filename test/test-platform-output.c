@@ -145,9 +145,9 @@ TEST_IMPL(platform_output) {
 #ifdef _WIN32
   options.file = "ipconfig";
 #else
-  options.file = "/sbin/ifconfig";
+  options.file = "/usr/sbin/ifconfig";
 #endif
-  args[0] = "/sbin/ifconfig";
+  args[0] = "/usr/sbin/ifconfig";
   args[1] = NULL;
   options.args = args;
   options.flags = 0;
