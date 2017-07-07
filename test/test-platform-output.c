@@ -28,7 +28,6 @@ static uv_process_options_t options;
 #define OUTPUT_SIZE 4096
 static char output[OUTPUT_SIZE];
 static int output_used;
-static char* args[2];
 
 
 static void close_cb(uv_handle_t* handle) {}
@@ -71,6 +70,7 @@ TEST_IMPL(platform_output) {
   int i;
   int r;
   int err;
+  char* args[2];
 
   err = uv_get_process_title(buffer, sizeof(buffer));
   ASSERT(err == 0);
@@ -136,7 +136,6 @@ TEST_IMPL(platform_output) {
   err = uv_interface_addresses(&interfaces, &count);
   ASSERT(err == 0);
 
-  // get real IP.
   uv_pipe_init(uv_default_loop(), &out, 0);
   options.stdio = stdio;
   options.stdio[0].flags = UV_IGNORE;
