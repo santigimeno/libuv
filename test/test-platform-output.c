@@ -146,10 +146,10 @@ TEST_IMPL(platform_output) {
 #ifdef _WIN32
   options.file = "ipconfig";
 #else
-  options.file = "ip";
+  options.file = "/sbin/ifconfig";
 #endif
-  args[0] = "ip";
-  args[1] = "address";
+  args[0] = "/sbin/ifconfig";
+  args[1] = NULL;
   options.args = args;
   options.flags = 0;
   options.exit_cb = exit_cb;
