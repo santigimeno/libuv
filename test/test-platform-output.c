@@ -70,7 +70,7 @@ TEST_IMPL(platform_output) {
   int i;
   int r;
   int err;
-  char* args[2];
+  char* args[3];
 
   err = uv_get_process_title(buffer, sizeof(buffer));
   ASSERT(err == 0);
@@ -148,7 +148,8 @@ TEST_IMPL(platform_output) {
   options.file = "/usr/sbin/ifconfig";
 #endif
   args[0] = "/usr/sbin/ifconfig";
-  args[1] = NULL;
+  args[1] = "-a";
+  args[2] = NULL;
   options.args = args;
   options.flags = 0;
   options.exit_cb = exit_cb;
