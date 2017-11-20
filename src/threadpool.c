@@ -173,11 +173,11 @@ static void init_threads(void) {
 
   QUEUE_INIT(&wq);
 
+  uv_mutex_lock(&threads_started_mutex);
   for (i = 0; i < nthreads; i++)
     if (uv_thread_create(threads + i, worker, NULL))
       abort();
 
-  uv_mutex_lock(&threads_started_mutex);
   do {
     uv_cond_wait(&threads_started_cond, &threads_started_mutex);
   } while (threads_started != nthreads);
