@@ -46,10 +46,6 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
   loop->poll_fds = NULL;
 }
 
-int uv__io_fork(uv_loop_t* loop) {
-  uv__platform_loop_delete(loop);
-  return uv__platform_loop_init(loop);
-}
 
 /* Allocate or dynamically resize our poll fds array.  */
 static void uv__pollfds_maybe_resize(uv_loop_t* loop) {

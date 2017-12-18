@@ -254,11 +254,6 @@ uv_os_fd_t uv_backend_fd(const uv_loop_t* loop) {
 }
 
 
-int uv_loop_fork(uv_loop_t* loop) {
-  return UV_ENOSYS;
-}
-
-
 static int uv__loop_alive(const uv_loop_t* loop) {
   return uv__has_active_handles(loop) ||
          uv__has_active_reqs(loop) ||

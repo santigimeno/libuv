@@ -60,22 +60,6 @@ RB_GENERATE_STATIC(uv__signal_tree_s,
                    uv_signal_s, tree_entry,
                    uv__signal_compare)
 
-static void uv__signal_global_reinit(void);
-
-static void uv__signal_global_init(void) {
-  if (uv__signal_lock_pipefd[0] == -1)
-    /* pthread_atfork can register before and after handlers, one
-     * for each child. This only registers one for the child. That
-     * state is both persistent and cumulative, so if we keep doing
-     * it the handler functions will be called multiple times. Thus
-     * we only want to do it once.
-     */
-    if (pthread_atfork(NULL, NULL, &uv__signal_global_reinit))
-      abort();
-
-  uv__signal_global_reinit();
-}
-
 
 void uv__signal_cleanup(void) {
   /* We can only use signal-safe functions here.
@@ -97,7 +81,7 @@ void uv__signal_cleanup(void) {
 }
 
 
-static void uv__signal_global_reinit(void) {
+static void uv__signal_global_init(void) {
   uv__signal_cleanup();
 
   if (uv__make_pipe(uv__signal_lock_pipefd, 0))
@@ -275,33 +259,6 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
   uv__io_start(loop, &loop->signal_io_watcher, POLLIN);
 
   return 0;
-}
-
-
-int uv__signal_loop_fork(uv_loop_t* loop) {
-  struct uv__queue* q;
-
-  if (loop->signal_pipefd[0] == -1)
-    return 0;
-  uv__io_stop(loop, &loop->signal_io_watcher, POLLIN);
-  uv__close(loop->signal_pipefd[0]);
-  uv__close(loop->signal_pipefd[1]);
-  loop->signal_pipefd[0] = -1;
-  loop->signal_pipefd[1] = -1;
-
-  uv__queue_foreach(q, &loop->handle_queue) {
-    uv_handle_t* handle = uv__queue_data(q, uv_handle_t, handle_queue);
-    uv_signal_t* sh;
-
-    if (handle->type != UV_SIGNAL)
-      continue;
-
-    sh = (uv_signal_t*) handle;
-    sh->caught_signals = 0;
-    sh->dispatched_signals = 0;
-  }
-
-  return uv__signal_loop_once_init(loop);
 }
 
 

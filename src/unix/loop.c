@@ -32,7 +32,6 @@ int uv_loop_init(uv_loop_t* loop) {
   void* saved_data;
   int err;
 
-
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
@@ -126,39 +125,6 @@ fail_metrics_mutex_init:
   uv__free(loop->watchers);
   loop->nwatchers = 0;
   return err;
-}
-
-
-int uv_loop_fork(uv_loop_t* loop) {
-  int err;
-  unsigned int i;
-  uv__io_t* w;
-
-  err = uv__io_fork(loop);
-  if (err)
-    return err;
-
-  err = uv__async_fork(loop);
-  if (err)
-    return err;
-
-  err = uv__signal_loop_fork(loop);
-  if (err)
-    return err;
-
-  /* Rearm all the watchers that aren't re-queued by the above. */
-  for (i = 0; i < loop->nwatchers; i++) {
-    w = loop->watchers[i];
-    if (w == NULL)
-      continue;
-
-    if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue)) {
-      w->events = 0; /* Force re-registration in uv__io_poll. */
-      uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
-    }
-  }
-
-  return 0;
 }
 
 

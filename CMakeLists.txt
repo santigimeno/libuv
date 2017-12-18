@@ -544,7 +544,6 @@ if(LIBUV_BUILD_TESTS)
        test/test-env-vars.c
        test/test-error.c
        test/test-fail-always.c
-       test/test-fork.c
        test/test-fs-copyfile.c
        test/test-fs-event.c
        test/test-fs-fd-hash.c

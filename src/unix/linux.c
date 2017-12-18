@@ -268,14 +268,11 @@ struct watcher_root {
   struct watcher_list* rbh_root;
 };
 
-static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root);
 static void uv__inotify_read(uv_loop_t* loop,
                              uv__io_t* w,
                              unsigned int revents);
 static int compare_watchers(const struct watcher_list* a,
                             const struct watcher_list* b);
-static void maybe_free_watcher_list(struct watcher_list* w,
-                                    uv_loop_t* loop);
 
 static void uv__epoll_ctl_flush(int epollfd,
                                 struct uv__iou* ctl,
@@ -649,26 +646,6 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   uv__iou_init(loop->backend_fd, &lfields->ctl, 256, 0);
 
   return 0;
-}
-
-
-int uv__io_fork(uv_loop_t* loop) {
-  int err;
-  struct watcher_list* root;
-
-  root = uv__inotify_watchers(loop)->rbh_root;
-
-  uv__close(loop->backend_fd);
-  loop->backend_fd = -1;
-
-  /* TODO(bnoordhuis) Loses items from the submission and completion rings. */
-  uv__platform_loop_delete(loop);
-
-  err = uv__platform_loop_init(loop);
-  if (err)
-    return err;
-
-  return uv__inotify_fork(loop, root);
 }
 
 
@@ -2313,72 +2290,6 @@ static int init_inotify(uv_loop_t* loop) {
   loop->inotify_fd = fd;
   uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
   uv__io_start(loop, &loop->inotify_read_watcher, POLLIN);
-
-  return 0;
-}
-
-
-static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root) {
-  /* Open the inotify_fd, and re-arm all the inotify watchers. */
-  int err;
-  struct watcher_list* tmp_watcher_list_iter;
-  struct watcher_list* watcher_list;
-  struct watcher_list tmp_watcher_list;
-  struct uv__queue queue;
-  struct uv__queue* q;
-  uv_fs_event_t* handle;
-  char* tmp_path;
-
-  if (root == NULL)
-    return 0;
-
-  /* We must restore the old watcher list to be able to close items
-   * out of it.
-   */
-  loop->inotify_watchers = root;
-
-  uv__queue_init(&tmp_watcher_list.watchers);
-  /* Note that the queue we use is shared with the start and stop()
-   * functions, making uv__queue_foreach unsafe to use. So we use the
-   * uv__queue_move trick to safely iterate. Also don't free the watcher
-   * list until we're done iterating. c.f. uv__inotify_read.
-   */
-  RB_FOREACH_SAFE(watcher_list, watcher_root,
-                  uv__inotify_watchers(loop), tmp_watcher_list_iter) {
-    watcher_list->iterating = 1;
-    uv__queue_move(&watcher_list->watchers, &queue);
-    while (!uv__queue_empty(&queue)) {
-      q = uv__queue_head(&queue);
-      handle = uv__queue_data(q, uv_fs_event_t, watchers);
-      /* It's critical to keep a copy of path here, because it
-       * will be set to NULL by stop() and then deallocated by
-       * maybe_free_watcher_list
-       */
-      tmp_path = uv__strdup(handle->path);
-      assert(tmp_path != NULL);
-      uv__queue_remove(q);
-      uv__queue_insert_tail(&watcher_list->watchers, q);
-      uv_fs_event_stop(handle);
-
-      uv__queue_insert_tail(&tmp_watcher_list.watchers, &handle->watchers);
-      handle->path = tmp_path;
-    }
-    watcher_list->iterating = 0;
-    maybe_free_watcher_list(watcher_list, loop);
-  }
-
-  uv__queue_move(&tmp_watcher_list.watchers, &queue);
-  while (!uv__queue_empty(&queue)) {
-      q = uv__queue_head(&queue);
-      uv__queue_remove(q);
-      handle = uv__queue_data(q, uv_fs_event_t, watchers);
-      tmp_path = handle->path;
-      handle->path = NULL;
-      err = uv_fs_event_start(handle, handle->cb, tmp_path, 0);
-      uv__free(tmp_path);
-      if (err)
-        return err;
-  }
 
   return 0;
 }

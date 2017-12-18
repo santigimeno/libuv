@@ -167,45 +167,9 @@ static void init_message_queue(uv__os390_epoll* lst) {
 }
 
 
-static void before_fork(void) {
-  uv_mutex_lock(&global_epoll_lock);
-}
-
-
-static void after_fork(void) {
-  uv_mutex_unlock(&global_epoll_lock);
-}
-
-
-static void child_fork(void) {
-  struct uv__queue* q;
-  uv_once_t child_once = UV_ONCE_INIT;
-
-  /* reset once */
-  memcpy(&once, &child_once, sizeof(child_once));
-
-  /* reset epoll list */
-  while (!uv__queue_empty(&global_epoll_queue)) {
-    uv__os390_epoll* lst;
-    q = uv__queue_head(&global_epoll_queue);
-    uv__queue_remove(q);
-    lst = uv__queue_data(q, uv__os390_epoll, member);
-    uv__free(lst->items);
-    lst->items = NULL;
-    lst->size = 0;
-  }
-
-  uv_mutex_unlock(&global_epoll_lock);
-  uv_mutex_destroy(&global_epoll_lock);
-}
-
-
 static void epoll_init(void) {
   uv__queue_init(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
-    abort();
-
-  if (pthread_atfork(&before_fork, &after_fork, &child_fork))
     abort();
 }
 

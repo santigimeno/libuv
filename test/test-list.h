@@ -560,25 +560,6 @@ TEST_DECLARE   (not_writable_after_shutdown)
 TEST_DECLARE   (not_readable_nor_writable_on_read_error)
 TEST_DECLARE   (readable_on_eof)
 
-#ifndef _WIN32
-TEST_DECLARE  (fork_timer)
-TEST_DECLARE  (fork_socketpair)
-TEST_DECLARE  (fork_socketpair_started)
-TEST_DECLARE  (fork_signal_to_child)
-TEST_DECLARE  (fork_signal_to_child_closed)
-TEST_DECLARE  (fork_close_signal_in_child)
-#ifndef __APPLE__ /* This is forbidden in a fork child: The process has forked
-                     and you cannot use this CoreFoundation functionality
-                     safely. You MUST exec(). */
-TEST_DECLARE  (fork_fs_events_child)
-TEST_DECLARE  (fork_fs_events_child_dir)
-TEST_DECLARE  (fork_fs_events_file_parent_child)
-#endif
-#ifndef __MVS__
-TEST_DECLARE  (fork_threadpool_queue_work_simple)
-#endif
-#endif
-
 TEST_DECLARE  (idna_toascii)
 TEST_DECLARE  (utf8_decode1)
 TEST_DECLARE  (utf8_decode1_overrun)
@@ -1218,23 +1199,6 @@ TASK_LIST_START
   TEST_ENTRY  (handle_type_name)
   TEST_ENTRY  (req_type_name)
   TEST_ENTRY  (getters_setters)
-
-#ifndef _WIN32
-  TEST_ENTRY  (fork_timer)
-  TEST_ENTRY  (fork_socketpair)
-  TEST_ENTRY  (fork_socketpair_started)
-  TEST_ENTRY  (fork_signal_to_child)
-  TEST_ENTRY  (fork_signal_to_child_closed)
-  TEST_ENTRY  (fork_close_signal_in_child)
-#ifndef __APPLE__
-  TEST_ENTRY  (fork_fs_events_child)
-  TEST_ENTRY  (fork_fs_events_child_dir)
-  TEST_ENTRY  (fork_fs_events_file_parent_child)
-#endif
-#ifndef __MVS__
-  TEST_ENTRY  (fork_threadpool_queue_work_simple)
-#endif
-#endif
 
   TEST_ENTRY  (utf8_decode1)
   TEST_ENTRY  (utf8_decode1_overrun)
