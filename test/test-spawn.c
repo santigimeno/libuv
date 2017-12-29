@@ -653,7 +653,7 @@ int spawn_tcp_server_helper(void) {
 TEST_IMPL(spawn_tcp_server) {
   uv_stdio_container_t stdio[4];
   struct sockaddr_in addr;
-  int fd;
+  uv_os_fd_t fd;
   int r;
 
   init_process_options("spawn_tcp_server_helper", exit_cb);
