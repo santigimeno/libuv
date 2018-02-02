@@ -165,6 +165,11 @@ static void fs_event_create_files(uv_timer_t* handle) {
   }
 }
 
+static void fs_event_create_files_2(uv_timer_t* handle) {
+  uv_close((uv_handle_t*) handle, close_cb);
+  touch_file("watch_dir/file1");
+}
+
 static void fs_event_unlink_files(uv_timer_t* handle) {
   int r;
   int i;
@@ -215,6 +220,18 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
     uv_close((uv_handle_t*) &timer, close_cb);
     uv_close((uv_handle_t*) handle, close_cb);
   }
+}
+
+static void fs_event_cb_dir_multi_file_2(uv_fs_event_t* handle,
+                                         const char* filename,
+                                         int events,
+                                         int status) {
+  fs_event_cb_called++;
+  ASSERT(handle == &fs_event);
+  ASSERT(status == 0);
+  ASSERT(events == UV_CHANGE || events == UV_RENAME);
+  ASSERT(strcmp(filename, "file1") == 0);
+  uv_close((uv_handle_t*) handle, close_cb);
 }
 
 #if defined(__APPLE__) || defined(_WIN32)
@@ -427,6 +444,43 @@ TEST_IMPL(fs_event_watch_dir) {
   /* Cleanup */
   fs_event_unlink_files(NULL);
   remove("watch_dir/file2");
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_event_watch_dir_2) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#elif defined(__MVS__)
+  RETURN_SKIP("Directory watching not supported on this platform.");
+#endif
+
+  uv_loop_t* loop = uv_default_loop();
+  int r;
+
+  /* Setup */
+  remove("watch_dir/");
+  create_dir("watch_dir");
+  create_file("watch_dir/file1");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_dir_multi_file_2, "watch_dir", 0);
+  ASSERT(r == 0);
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer, fs_event_create_files_2, 100, 0);
+  ASSERT(r == 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(fs_event_cb_called == 1);
+  ASSERT(close_cb_called == 2);
+
+  /* Cleanup */
   remove("watch_dir/file1");
   remove("watch_dir/");
 
