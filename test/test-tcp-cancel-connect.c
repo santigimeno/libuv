@@ -19,8 +19,6 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef _WIN32
-
 #include "uv.h"
 #include "task.h"
 
@@ -55,4 +53,3 @@ TEST_IMPL(tcp_cancel_connect) {
   return 0;
 }
 
-#endif
