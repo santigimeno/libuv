@@ -98,6 +98,7 @@
         'test-tcp-alloc-cb-fail.c',
         'test-tcp-bind-error.c',
         'test-tcp-bind6-error.c',
+        'test-tcp-cancel-connect.c',
         'test-tcp-close.c',
         'test-tcp-close-accept.c',
         'test-tcp-close-while-connecting.c',

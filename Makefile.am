@@ -240,6 +240,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-alloc-cb-fail.c \
                          test/test-tcp-bind-error.c \
                          test/test-tcp-bind6-error.c \
+                         test/test-tcp-cancel-connect.c \
                          test/test-tcp-close-accept.c \
                          test/test-tcp-close-while-connecting.c \
                          test/test-tcp-close.c \
