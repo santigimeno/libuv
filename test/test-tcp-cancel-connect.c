@@ -44,8 +44,7 @@ TEST_IMPL(tcp_cancel_connect) {
                              &sa,
                              connect_cb));
 
-  uv_close((uv_handle_t*) &tcp_client, NULL);
-
+  uv_tcp_close(&loop, &tcp_client);
 
   uv_run(&loop, UV_RUN_DEFAULT);
 
