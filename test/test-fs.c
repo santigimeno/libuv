@@ -1199,6 +1199,7 @@ TEST_IMPL(fs_fstat) {
   ASSERT(s->st_ctim.tv_nsec == t.st_ctim.tv_nsec);
 # if defined(__FreeBSD__)    || \
      defined(__NetBSD__)
+  fprintf(stderr, "BirthTime: %d - %ld\n", t.st_birthtim.tv_sec, t.st_birthtim.tv_nsec);
   ASSERT(s->st_birthtim.tv_sec == t.st_birthtim.tv_sec);
   ASSERT(s->st_birthtim.tv_nsec == t.st_birthtim.tv_nsec);
   ASSERT(s->st_flags == t.st_flags);

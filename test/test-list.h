@@ -813,7 +813,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_async_dir)
   TEST_ENTRY  (fs_async_sendfile)
   TEST_ENTRY  (fs_mkdtemp)
-  TEST_ENTRY  (fs_fstat)
+  TEST_ENTRY_CUSTOM (fs_fstat, 0, 1, 5000)
   TEST_ENTRY  (fs_access)
   TEST_ENTRY  (fs_chmod)
   TEST_ENTRY  (fs_copyfile)
