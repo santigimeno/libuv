@@ -202,3 +202,50 @@ TEST_IMPL(udp_open_twice) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(udp_open_connect) {
+  struct sockaddr_in addr;
+  uv_buf_t buf = uv_buf_init("PING", 4);
+  uv_udp_t client;
+  uv_os_sock_t sock;
+  int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
+  startup();
+  sock = create_udp_socket();
+
+  r = uv_udp_init(uv_default_loop(), &client);
+  ASSERT(r == 0);
+
+  r = bind(sock, (const struct sockaddr*) &addr, sizeof(addr));
+  ASSERT(r == 0);
+
+  r = connect(sock, (const struct sockaddr*) &addr, sizeof(addr));
+  ASSERT(r == 0);
+
+  r = uv_udp_open(&client, sock);
+  ASSERT(r == 0);
+
+  r = uv_udp_recv_start(&client, alloc_cb, recv_cb);
+  ASSERT(r == 0);
+
+  r = uv_udp_send(&send_req,
+                  &client,
+                  &buf,
+                  1,
+                  NULL,
+                  send_cb);
+  ASSERT(r == 0);
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT(send_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  ASSERT(client.send_queue_size == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

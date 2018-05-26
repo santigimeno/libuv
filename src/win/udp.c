@@ -153,9 +153,6 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   UV_REQ_INIT(&handle->recv_req, UV_UDP_RECV);
   handle->recv_req.data = handle;
 
-  if (uv__udp_is_connected(handle))
-    handle->flags |= UV__UDP_CONNECTED;
-
   /* If anything fails beyond this point we need to remove the handle from
    * the handle queue, since it was added by uv__handle_init.
    */
@@ -763,7 +760,13 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
                           handle,
                           sock,
                           protocol_info.iAddressFamily);
-  return uv_translate_sys_error(err);
+  if (err)
+    return uv_translate_sys_error(err);
+
+  if (uv__udp_is_connected(handle))
+    handle->flags |= UV__UDP_CONNECTED;
+
+  return 0;
 }
 
 

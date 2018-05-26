@@ -663,8 +663,7 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   uv__io_init(&handle->io_watcher, uv__udp_io, fd);
   QUEUE_INIT(&handle->write_queue);
   QUEUE_INIT(&handle->write_completed_queue);
-  if (uv__udp_is_connected(handle))
-    handle->flags |= UV__UDP_CONNECTED;
+
   return 0;
 }
 
@@ -690,6 +689,9 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
     return err;
 
   handle->io_watcher.fd = sock;
+  if (uv__udp_is_connected(handle))
+    handle->flags |= UV__UDP_CONNECTED;
+
   return 0;
 }
 
