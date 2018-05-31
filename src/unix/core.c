@@ -1347,3 +1347,26 @@ uv_pid_t uv_os_getpid(void) {
 uv_pid_t uv_os_getppid(void) {
   return getppid();
 }
+
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen) {
+  socklen_t socklen;
+  uv_os_fd_t fd;
+  int r;
+
+  r = uv_fileno(handle, &fd);
+  if (r < 0)
+    return r;
+
+  /* sizeof(socklen_t) != sizeof(int) on some systems. */
+  socklen = (socklen_t) *namelen;
+
+  if (func(fd, name, &socklen))
+    return UV__ERR(errno);
+
+  *namelen = (int) socklen;
+  return 0;
+}
