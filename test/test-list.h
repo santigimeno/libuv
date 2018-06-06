@@ -614,7 +614,7 @@ TASK_LIST_START
   TEST_HELPER (udp_open, udp4_echo_server)
   TEST_ENTRY  (udp_open_twice)
   TEST_ENTRY  (udp_open_connect)
-  TEST_HELPER (udp_open_connect, udp4_echo_server)
+  //TEST_HELPER (udp_open_connect, udp4_echo_server)
 
   TEST_ENTRY  (pipe_bind_error_addrinuse)
   TEST_ENTRY  (pipe_bind_error_addrnotavail)

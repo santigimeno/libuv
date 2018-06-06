@@ -315,6 +315,20 @@ int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
 }
 
 
+int uv__udp_is_bound(uv_udp_t* handle) {
+	struct sockaddr_storage addr;
+	int addrlen;
+	if (handle->type != UV_UDP)
+		return 0;
+
+	addrlen = sizeof(addr);
+	if (uv_udp_getsockname(handle, (struct sockaddr*) &addr, &addrlen) != 0)
+		return 0;
+
+	return addrlen > 0;
+}
+
+
 int uv__udp_is_connected(uv_udp_t* handle) {
   struct sockaddr_storage addr;
   int addrlen;

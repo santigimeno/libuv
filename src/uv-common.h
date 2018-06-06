@@ -95,6 +95,8 @@ int uv__udp_connect(uv_udp_t* handle,
 
 int uv__udp_disconnect(uv_udp_t* handle);
 
+int uv__udp_is_bound(uv_udp_t* handle);
+
 int uv__udp_is_connected(uv_udp_t* handle);
 
 int uv__udp_send(uv_udp_send_t* req,

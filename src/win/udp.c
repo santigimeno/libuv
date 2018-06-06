@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -38,8 +39,10 @@ int uv_udp_getpeername(const uv_udp_t* handle,
     return UV_EINVAL;
   }
 
+  fprintf(stderr, "uv_udp_getpeername(1)\n");
   result = getpeername(handle->socket, name, namelen);
   if (result != 0) {
+	  fprintf(stderr, "uv_udp_getpeername(%d)\n", result);
     return uv_translate_sys_error(WSAGetLastError());
   }
 
@@ -267,6 +270,7 @@ static int uv_udp_maybe_bind(uv_udp_t* handle,
 
   r = bind(handle->socket, addr, addrlen);
   if (r == SOCKET_ERROR) {
+	  fprintf(stderr, "bind: %d\n", r);
     return WSAGetLastError();
   }
 
@@ -325,6 +329,7 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
   int err;
 
   if (handle->flags & UV_HANDLE_READING) {
+	fprintf(stderr, "uv__udp_recv_start(1)\n");
     return WSAEALREADY;
   }
 
@@ -332,6 +337,7 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
                           (const struct sockaddr*) &uv_addr_ip4_any_,
                           sizeof(uv_addr_ip4_any_),
                           0);
+  fprintf(stderr, "uv__udp_recv_start((%d))\n", err);
   if (err)
     return err;
 
@@ -761,10 +767,13 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
                           sock,
                           protocol_info.iAddressFamily);
   if (err)
-    return uv_translate_sys_error(err);
+	  return uv_translate_sys_error(err);
+
+  if (uv__udp_is_bound(handle))
+	  handle->flags |= UV_HANDLE_BOUND;
 
   if (uv__udp_is_connected(handle))
-    handle->flags |= UV__UDP_CONNECTED;
+	  handle->flags |= UV__UDP_CONNECTED;
 
   return 0;
 }
@@ -836,6 +845,7 @@ int uv__udp_bind(uv_udp_t* handle,
   int err;
 
   err = uv_udp_maybe_bind(handle, addr, addrlen, flags);
+  fprintf(stderr, "uv__udp_bind: %d\n", err);
   if (err)
     return uv_translate_sys_error(err);
 
