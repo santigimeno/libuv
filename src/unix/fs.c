@@ -767,7 +767,7 @@ skip:
   ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
   ts[1].tv_sec  = req->mtime;
   ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
-  return utimensat(AT_FDCWD, req->path, ts);
+  return utimensat(AT_FDCWD, req->path, ts, 0);
 #elif defined(__MVS__)
   attrib_t atr;
   memset(&atr, 0, sizeof(atr));
