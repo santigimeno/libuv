@@ -753,19 +753,15 @@ skip:
     || defined(__FreeBSD__)                                                   \
     || defined(__FreeBSD_kernel__)                                            \
     || defined(__NetBSD__)                                                    \
-    || defined(__OpenBSD__)                                                   \
-    || defined(__sun)
+    || defined(__OpenBSD__)
   struct timeval tv[2];
   tv[0].tv_sec  = req->atime;
   tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
   tv[1].tv_sec  = req->mtime;
   tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
-# if defined(__sun)
-  return utimesat(AT_FDCWD, req->path, tv);
-# else
   return utimes(req->path, tv);
-# endif
-#elif defined(_AIX71)
+#elif defined(_AIX71)                                                         \
+    || defined(__sun)
   struct timespec ts[2];
   ts[0].tv_sec  = req->atime;
   ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
