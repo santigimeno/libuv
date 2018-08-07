@@ -729,7 +729,6 @@ skip:
   tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
   tv[1].tv_sec  = req->mtime;
   tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
-  snprintf(req->path, sizeof(req->path));
 
   r = utimes(req->path, tv);
   if (r == 0)
