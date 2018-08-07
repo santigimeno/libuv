@@ -714,7 +714,7 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
   ts[1].tv_sec  = req->mtime;
   ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
 
-  r = uv__utimesat(NULL, req->path, ts, 0);
+  r = uv__utimesat(AT_FDCWD, req->path, ts, 0);
   if (r == 0)
     return r;
 
@@ -762,7 +762,7 @@ skip:
   tv[1].tv_sec  = req->mtime;
   tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
 # if defined(__sun)
-  return utimesat(NULL, req->path, tv);
+  return utimesat(AT_FDCWD, req->path, tv);
 # else
   return utimes(req->path, tv);
 # endif
