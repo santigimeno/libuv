@@ -66,6 +66,10 @@
 # define FICLONE _IOW(0x94, 9, int)
 #endif
 
+#if defined(_AIX) && !defined(_AIX71)
+# include <utime.h>
+#endif
+
 #define INIT(subtype)                                                         \
   do {                                                                        \
     if (req == NULL)                                                          \
@@ -755,6 +759,12 @@ skip:
   tv[1].tv_sec  = req->mtime;
   tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
   return utimes(req->path, tv);
+#elif defined(_AIX)                                                           \
+    && !defined(_AIX71)
+  struct utimbuf buf;
+  buf.actime = req->atime;
+  buf.modtime = req->mtime;
+  return utime(req->path, &buf);
 #elif defined(_AIX71)                                                         \
     || defined(__sun)
   struct timespec ts[2];
