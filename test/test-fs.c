@@ -270,8 +270,10 @@ static void lchmod_cb(uv_fs_t* req) {
   ASSERT(req->result == 0 || req->result == UV_ENOTSUP);
   lchmod_cb_count++;
   uv_fs_req_cleanup(req);
-  if (req->result == 0)
+  if (req->result == 0) {
+    fprintf(stderr, "lchmod works (2)\n");
     check_permission("test_file_link", *(int*)req->data);
+  }
 }
 
 
@@ -1457,8 +1459,11 @@ TEST_IMPL(fs_chmod) {
   r = uv_fs_lchmod(NULL, &req, "test_file_link", 0400, NULL);
   ASSERT(r == 0 || r == UV_ENOTSUP);
   ASSERT(req.result == 0 || req.result == UV_ENOTSUP);
-  if (r == 0)
+  if (r == 0) {
+    fprintf(stderr, "lchmod works (1)\n");
     check_permission("test_file_link", 0400);
+  }
+
   uv_fs_req_cleanup(&req);
 
   /* async lchmod */
@@ -1478,7 +1483,7 @@ TEST_IMPL(fs_chmod) {
   unlink("test_file_link");
 
   MAKE_VALGRIND_HAPPY();
-  return 0;
+  return -1;
 }
 
 
