@@ -578,6 +578,7 @@ static void closed_handle_large_write_cb(uv_write_t* req, int status) {
 
 
 static void closed_handle_write_cb(uv_write_t* req, int status) {
+  fprintf(stderr, "closed_handle_write_cb: %d\n", status);
   ASSERT(status == UV_EBADF);
 }
 

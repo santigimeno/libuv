@@ -55,6 +55,7 @@ static void write_cb(uv_write_t* req, int status) {
 }
 
 static void shutdown_cb(uv_shutdown_t* req, int status) {
+  fprintf(stderr, "status: %d\n", status);
   ASSERT(status == 0);
   uv_close((uv_handle_t*) req->handle, NULL);
 }
