@@ -295,6 +295,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-udp-send-hang-loop.c \
                          test/test-udp-send-immediate.c \
                          test/test-udp-send-unreachable.c \
+                         test/test-udp-ss-multicast-join.c \
                          test/test-udp-try-send.c \
                          test/test-uname.c \
                          test/test-walk-handles.c \
