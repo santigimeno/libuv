@@ -154,6 +154,7 @@
         'test-ip6-addr.c',
         'test-udp-multicast-interface.c',
         'test-udp-multicast-interface6.c',
+        'test-udp-ss-multicast-join.c',
         'test-udp-try-send.c',
         'test-uname.c',
       ],
