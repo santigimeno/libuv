@@ -102,7 +102,6 @@ TEST_IMPL(udp_ss_multicast_join) {
   struct sockaddr_in addr;
   uv_interface_address_t* iface_addresses;
   uv_interface_address_t iface_addr;
-  int found;
   int count;
   char buffer[32];
 
@@ -121,27 +120,20 @@ TEST_IMPL(udp_ss_multicast_join) {
   r = uv_interface_addresses(&iface_addresses, &count); 
   ASSERT(r == 0);
 
-  found = 0;
-  for (i = 0; found == 0 && i < count; i += 1) {
+  for (i = 0; i < count; i += 1) {
     iface_addr = iface_addresses[i];
     if (iface_addr.address.address4.sin_family == AF_INET &&
         strncmp(iface_addr.name, "lo", 2) != 0) {
-      found = 1;
+      uv_ip4_name(&iface_addr.address.address4, buffer, sizeof(buffer));
+      /* join the multicast channel */
+      r = uv_udp_set_source_membership(&client, "224.0.0.1", NULL, buffer, UV_JOIN_GROUP);
+      if (r == UV_ENODEV)
+        RETURN_SKIP("No multicast support.");
+      ASSERT(r == 0);
     }
   }
 
-  if (found)
-    uv_ip4_name(&iface_addr.address.address4, buffer, sizeof(buffer));
-
   uv_free_interface_addresses(iface_addresses, count);
-
-  ASSERT(found == 1);
-
-  /* join the multicast channel */
-  r = uv_udp_set_source_membership(&client, "224.0.0.1", NULL, buffer, UV_JOIN_GROUP);
-  if (r == UV_ENODEV)
-    RETURN_SKIP("No multicast support.");
-  ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);
   ASSERT(r == 0);
