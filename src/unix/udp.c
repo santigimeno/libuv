@@ -651,12 +651,13 @@ static int uv__udp_set_source_membership6(uv_udp_t* handle,
   memcpy(&mreq.gsr_source, source_addr, sizeof(mreq.gsr_source));
 
   if (membership == UV_JOIN_GROUP)
-    optname = IP_ADD_SOURCE_MEMBERSHIP;
+    optname = MCAST_JOIN_SOURCE_GROUP;
   else if (membership == UV_LEAVE_GROUP)
-    optname = IP_DROP_SOURCE_MEMBERSHIP;
+    optname = MCAST_LEAVE_SOURCE_GROUP;
   else
     return UV_EINVAL;
 
+  fprintf(stderr, "HERE\n");
   if (setsockopt(handle->io_watcher.fd,
                  IPPROTO_IPV6,
                  optname,
@@ -920,7 +921,7 @@ int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
  * and use the general uv__setsockopt_maybe_char call otherwise.
  */
 #if defined(__sun) || defined(_AIX) || defined(__OpenBSD__) || \
-    defined(__MVS__) 
+    defined(__MVS__)
   if (handle->flags & UV_HANDLE_IPV6)
     return uv__setsockopt(handle,
                           IP_MULTICAST_LOOP,

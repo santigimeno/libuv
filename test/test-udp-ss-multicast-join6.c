@@ -95,17 +95,20 @@ static void cl_recv_cb(uv_udp_t* handle,
 }
 
 
-TEST_IMPL(udp_ss_multicast_join) {
+TEST_IMPL(udp_ss_multicast_join6) {
   int i, r;
   uv_udp_send_t req;
   uv_buf_t buf;
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   uv_interface_address_t* iface_addresses;
   uv_interface_address_t iface_addr;
   int count;
-  char buffer[32];
+  char buffer[64];
 
-  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -122,11 +125,12 @@ TEST_IMPL(udp_ss_multicast_join) {
 
   for (i = 0; i < count; i += 1) {
     iface_addr = iface_addresses[i];
-    if (iface_addr.address.address4.sin_family == AF_INET &&
+    if (iface_addr.address.address6.sin6_family == AF_INET6&&
         strncmp(iface_addr.name, "lo", 2) != 0) {
-      uv_ip4_name(&iface_addr.address.address4, buffer, sizeof(buffer));
+      uv_ip6_name(&iface_addr.address.address6, buffer, sizeof(buffer));
       /* join the multicast channel */
-      r = uv_udp_set_source_membership(&client, "224.0.0.1", NULL, buffer, UV_JOIN_GROUP);
+      fprintf(stderr, "buffer: %s", buffer);
+      r = uv_udp_set_source_membership(&client, "ff02::1", NULL, buffer, UV_JOIN_GROUP);
       if (r == UV_ENODEV)
         RETURN_SKIP("No multicast support.");
       ASSERT(r == 0);
@@ -140,7 +144,7 @@ TEST_IMPL(udp_ss_multicast_join) {
 
   buf = uv_buf_init("PING", 4);
 
-  ASSERT(0 == uv_ip4_addr("224.0.0.1", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip6_addr("ff02::1", TEST_PORT, &addr));
 
   /* server sends "PING" */
   r = uv_udp_send(&req,

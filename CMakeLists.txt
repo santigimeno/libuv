@@ -168,6 +168,7 @@ set(uv_test_sources
     test/test-udp-send-immediate.c
     test/test-udp-send-unreachable.c
     test/test-udp-ss-multicast-join.c
+    test/test-udp-ss-multicast-join6.c
     test/test-udp-try-send.c
     test/test-uname.c
     test/test-walk-handles.c
