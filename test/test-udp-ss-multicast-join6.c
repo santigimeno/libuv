@@ -130,7 +130,7 @@ TEST_IMPL(udp_ss_multicast_join6) {
       uv_ip6_name(&iface_addr.address.address6, buffer, sizeof(buffer));
       /* join the multicast channel */
       fprintf(stderr, "buffer: %s", buffer);
-      r = uv_udp_set_source_membership(&client, "ff02::1", NULL, buffer, UV_JOIN_GROUP);
+      r = uv_udp_set_source_membership(&client, "ff02::1", "::", buffer, UV_JOIN_GROUP);
       if (r == UV_ENODEV)
         RETURN_SKIP("No multicast support.");
       ASSERT(r == 0);
