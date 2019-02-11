@@ -645,6 +645,8 @@ static int uv__udp_set_source_membership6(uv_udp_t* handle,
     if (err)
       return err;
     mreq.gsr_interface = addr6.sin6_scope_id;
+  } else {
+    mreq.gsr_interface = 0;
   }
 
   memcpy(&mreq.gsr_group, multicast_addr, sizeof(mreq.gsr_group));
