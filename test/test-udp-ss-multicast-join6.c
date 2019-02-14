@@ -158,7 +158,7 @@ TEST_IMPL(udp_ss_multicast_join6) {
   for (i = 0; i < count; i += 1) {
     fprintf(stderr, "count: %d i: %d\n", count, i);
     iface_addr = iface_addresses[i];
-    if (iface_addr.address.address6.sin6_family) {
+    if (iface_addr.address.address6.sin6_family == AF_INET6) {
       uv_ip6_name(&iface_addr.address.address6, buffer, sizeof(buffer));
       /* join the multicast channel */
       fprintf(stderr, "buffer: %s\n", buffer);
