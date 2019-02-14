@@ -659,7 +659,6 @@ static int uv__udp_set_source_membership6(uv_udp_t* handle,
   else
     return UV_EINVAL;
 
-  fprintf(stderr, "HERE\n");
   if (setsockopt(handle->io_watcher.fd,
                  IPPROTO_IPV6,
                  optname,
