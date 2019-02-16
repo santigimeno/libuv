@@ -158,16 +158,21 @@ TEST_IMPL(udp_ss_multicast_join6) {
     iface_addr = iface_addresses[i];
     if (iface_addr.address.address6.sin6_family == AF_INET6) {
       uv_ip6_name(&iface_addr.address.address6, buffer, sizeof(buffer));
+      iface_index = if_nametoindex(iface_addr.name);
       /* join the multicast channel */
+#ifdef _WIN32
+      snprintf(iface_addr_buf, sizeof(iface_addr_buf), "%s%%%d", buffer, iface_index);
+      snprintf(mcast_addr_buf, sizeof(mcast_addr_buf), "%s%%%d", MULTICAST_ADDR, iface_index);
+      snprintf(src_addr_buf, sizeof(src_addr_buf), "%s%%%d", buffer, iface_index);
+#else
       snprintf(iface_addr_buf, sizeof(iface_addr_buf), "%s%%%s", buffer, iface_addr.name);
       snprintf(mcast_addr_buf, sizeof(mcast_addr_buf), "%s%%%s", MULTICAST_ADDR, iface_addr.name);
       snprintf(src_addr_buf, sizeof(src_addr_buf), "%s%%%s", buffer, iface_addr.name);
+#endif
       fprintf(stderr, "mcast: %s, iface: %s, src: %s\n", mcast_addr_buf, iface_addr_buf, src_addr_buf);
       r = uv_udp_set_source_membership(&server, mcast_addr_buf, iface_addr_buf, src_addr_buf, UV_JOIN_GROUP);
       if (r != 0)
         continue;
-      
-      iface_index = if_nametoindex(iface_addr.name);
 
       ASSERT(0 == setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &iface_index, sizeof(iface_index)));
 
