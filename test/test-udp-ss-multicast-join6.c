@@ -37,11 +37,11 @@
     defined(__FreeBSD_kernel__) || \
     defined(__NetBSD__)         || \
     defined(__OpenBSD__)
-  #define MULTICAST_ADDR "ff02::1%lo0"
-  #define INTERFACE_ADDR "::1%lo0"
+  #define MULTICAST_ADDR "ff02::1"
+  #define INTERFACE_ADDR ""
 #else
   #define MULTICAST_ADDR "ff02::1"
-  #define INTERFACE_ADDR NULL
+  #define INTERFACE_ADDR ""
 #endif
 
 static uv_udp_t server;
@@ -125,6 +125,9 @@ TEST_IMPL(udp_ss_multicast_join6) {
   uv_interface_address_t iface_addr;
   int count;
   char buffer[64];
+  char iface_addr_buf[64];
+  char mcast_addr_buf[64];
+  char src_addr_buf[64];
   int iface_index;
   int fd;
 
@@ -161,11 +164,14 @@ TEST_IMPL(udp_ss_multicast_join6) {
     if (iface_addr.address.address6.sin6_family == AF_INET6) {
       uv_ip6_name(&iface_addr.address.address6, buffer, sizeof(buffer));
       /* join the multicast channel */
-      fprintf(stderr, "buffer: %s\n", buffer);
-      r = uv_udp_set_source_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, buffer, UV_JOIN_GROUP);
+      snprintf(iface_addr_buf, sizeof(iface_addr_buf), "%s%%%s", buffer, iface_addr.name);
+      snprintf(mcast_addr_buf, sizeof(mcast_addr_buf), "%s%%%s", MULTICAST_ADDR, iface_addr.name);
+      snprintf(src_addr_buf, sizeof(src_addr_buf), "%s%%%s", buffer, iface_addr.name);
+      fprintf(stderr, "mcast: %s, iface: %s, src: %s\n", mcast_addr_buf, iface_addr_buf, src_addr_buf);
+      r = uv_udp_set_source_membership(&server, mcast_addr_buf, iface_addr_buf, src_addr_buf, UV_JOIN_GROUP);
       if (r != 0)
         continue;
-        
+      
       iface_index = if_nametoindex(iface_addr.name);
 
       ASSERT(0 == setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &iface_index, sizeof(iface_index)));
