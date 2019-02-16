@@ -138,7 +138,7 @@ TEST_IMPL(udp_ss_multicast_join6) {
   ASSERT(r == 0);
 
   /* bind to the desired port */
-  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, UV_UDP_REUSEADDR);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&server, alloc_cb, cl_recv_cb);
@@ -175,8 +175,9 @@ TEST_IMPL(udp_ss_multicast_join6) {
 #endif
       if (r != 0)
         continue;
-
+#ifndef _WIN32
       ASSERT(0 == setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &iface_index, sizeof(iface_index)));
+#endif
 
       /* server sends "PING" */
       r = uv_udp_send(&req[i],
