@@ -25,24 +25,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <iphlpapi.h>
+#else
 #include <net/if.h>
+#endif
 
 
 #define CHECK_HANDLE(handle) \
   ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
 
-#if defined(__APPLE__)          || \
-    defined(_AIX)               || \
-    defined(__MVS__)            || \
-    defined(__FreeBSD_kernel__) || \
-    defined(__NetBSD__)         || \
-    defined(__OpenBSD__)
-  #define MULTICAST_ADDR "ff02::1"
-  #define INTERFACE_ADDR ""
-#else
-  #define MULTICAST_ADDR "ff02::1"
-  #define INTERFACE_ADDR ""
-#endif
+#define MULTICAST_ADDR "ff02::1"
+#define INTERFACE_ADDR ""
 
 static uv_udp_t server;
 static uv_udp_t client;
