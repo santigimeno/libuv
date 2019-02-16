@@ -161,6 +161,7 @@ TEST_IMPL(udp_ss_multicast_join6) {
       iface_index = if_nametoindex(iface_addr.name);
       /* join the multicast channel */
 #ifdef _WIN32
+      iface_index = 1;
       snprintf(iface_addr_buf, sizeof(iface_addr_buf), "%s", buffer);
       snprintf(mcast_addr_buf, sizeof(mcast_addr_buf), "%s", MULTICAST_ADDR);
       snprintf(src_addr_buf, sizeof(src_addr_buf), "%s", buffer);
@@ -175,9 +176,8 @@ TEST_IMPL(udp_ss_multicast_join6) {
 #endif
       if (r != 0)
         continue;
-#ifndef _WIN32
+
       ASSERT(0 == setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &iface_index, sizeof(iface_index)));
-#endif
 
       /* server sends "PING" */
       r = uv_udp_send(&req[i],
