@@ -85,6 +85,8 @@ static void cl_recv_cb(uv_udp_t* handle,
                        const uv_buf_t* buf,
                        const struct sockaddr* addr,
                        unsigned flags) {
+  char buffer[64];
+
   CHECK_HANDLE(handle);
   ASSERT(flags == 0);
 
@@ -103,6 +105,10 @@ static void cl_recv_cb(uv_udp_t* handle,
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
   ASSERT(!memcmp("PING", buf->base, nread));
+
+  uv_ip6_name((const struct sockaddr_in6*)addr, buffer, sizeof(buffer));
+
+  fprintf(stderr, "recvaddr: %s\n", buffer);
 
   /* we are done with the client handle, we can close it */
   uv_close((uv_handle_t*) &client, close_cb);
@@ -166,5 +172,5 @@ TEST_IMPL(udp_multicast_join6) {
   ASSERT(close_cb_called == 2);
 
   MAKE_VALGRIND_HAPPY();
-  return 0;
+  return 27;
 }
