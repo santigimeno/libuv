@@ -172,7 +172,8 @@ TEST_IMPL(udp_ss_multicast_join6) {
       snprintf(mcast_addr_buf, sizeof(mcast_addr_buf), "%s%%%s", MULTICAST_ADDR, iface_addr.name);
       snprintf(src_addr_buf, sizeof(src_addr_buf), "%s%%%s", buffer, iface_addr.name);
       fprintf(stderr, "mcast: %s, iface: %s, src: %s\n", mcast_addr_buf, iface_addr_buf, src_addr_buf);
-      r = uv_udp_set_source_membership(&server, mcast_addr_buf, iface_addr_buf, src_addr_buf, UV_JOIN_GROUP);
+      r = uv_udp_set_membership(&server, mcast_addr_buf, iface_addr_buf, UV_JOIN_GROUP);
+      /* r = uv_udp_set_source_membership(&server, mcast_addr_buf, iface_addr_buf, src_addr_buf, UV_JOIN_GROUP);*/
 #endif
       if (r != 0)
         continue;
