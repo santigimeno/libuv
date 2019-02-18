@@ -127,7 +127,7 @@ static void cl_recv_cb(uv_udp_t* handle,
     uv_ip6_name((const struct sockaddr_in6*)addr, buffer, sizeof(buffer));
     r = uv_udp_set_membership(&client, MULTICAST_ADDR, INTERFACE_ADDR, UV_LEAVE_GROUP);
     ASSERT(r == 0);
-    r = uv_udp_set_source_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, buffer, UV_JOIN_GROUP);
+    r = uv_udp_set_source_membership(&client, MULTICAST_ADDR, INTERFACE_ADDR, buffer, UV_JOIN_GROUP);
     ASSERT(r == 0);
     ASSERT(0 == uv_ip6_addr(MULTICAST_ADDR, TEST_PORT, ( struct sockaddr_in6*)addr));
     buf2 = uv_buf_init("PING", 4);
