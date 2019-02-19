@@ -784,9 +784,9 @@ int uv__udp_set_source_membership6(uv_udp_t* handle,
   memcpy(&mreq.gsr_source, source_addr, sizeof(mreq.gsr_source));
 
   if (membership == UV_JOIN_GROUP)
-    optname = IP_ADD_SOURCE_MEMBERSHIP;
+    optname = MCAST_JOIN_SOURCE_GROUP;
   else if (membership == UV_LEAVE_GROUP)
-    optname = IP_DROP_SOURCE_MEMBERSHIP;
+    optname = MCAST_LEAVE_SOURCE_GROUP;
   else
     return UV_EINVAL;
 
