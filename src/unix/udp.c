@@ -29,6 +29,7 @@
 #include <unistd.h>
 #if defined(__MVS__)
 #include <xti.h>
+#include <netinet/in.h>
 #endif
 
 #if defined(IPV6_JOIN_GROUP) && !defined(IPV6_ADD_MEMBERSHIP)
