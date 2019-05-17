@@ -122,8 +122,10 @@ TEST_IMPL(fs_copyfile) {
   /* Succeeds if src and dst files are identical. */
   touch_file(src, 12);
   r = uv_fs_copyfile(NULL, &req, src, src, 0, NULL);
+  fprintf(stderr, "r: %d\n", r);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
+  unlink(src);
 
   /* Copies file synchronously. Creates new file. */
   unlink(dst);
