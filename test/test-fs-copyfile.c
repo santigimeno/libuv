@@ -119,10 +119,10 @@ TEST_IMPL(fs_copyfile) {
   ASSERT(r != 0);
   uv_fs_req_cleanup(&req);
 
-  /* Fails with EINVAL if src and dst files are identical. */
+  /* Succeeds if src and dst files are identical. */
   touch_file(src, 12);
   r = uv_fs_copyfile(NULL, &req, src, src, 0, NULL);
-  ASSERT(r == UV_EINVAL);
+  ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 
   /* Copies file synchronously. Creates new file. */

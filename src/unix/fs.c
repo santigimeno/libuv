@@ -955,7 +955,6 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   /* Check if srcfd and dstfd refer to the same file */
   if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
       src_statsbuf.st_ino == dst_statsbuf.st_ino) {
-    err = UV_EINVAL;
     goto out;
   }
 
