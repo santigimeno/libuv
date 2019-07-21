@@ -109,7 +109,7 @@ static void cl_recv_cb(uv_udp_t* handle,
 }
 
 
-static int can_ipv6_not_internal(void) {
+static int can_ipv6_external(void) {
   uv_interface_address_t* addr;
   int supported;
   int count;
@@ -134,8 +134,8 @@ TEST_IMPL(udp_multicast_join6) {
   uv_buf_t buf;
   struct sockaddr_in6 addr;
 
-  if (!can_ipv6_not_internal())
-    RETURN_SKIP("Non-internal IPv6 interface available");
+  if (!can_ipv6_external())
+    RETURN_SKIP("No external IPv6 interface available");
 
   ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
 
