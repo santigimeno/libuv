@@ -197,7 +197,7 @@ static void uv__signal_handler(int signum) {
     int r;
 
     msg.signum = signum;
-    msg.handle = handle;
+    msg.handle = handle->u.reserved[0];
 
     /* write() should be atomic for small data chunks, so the entire message
      * should be written at once. In theory the pipe could become full, in
@@ -325,6 +325,7 @@ int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
   handle->signum = 0;
   handle->caught_signals = 0;
   handle->dispatched_signals = 0;
+  handle->u.reserved[0] = handle;
 
   return 0;
 }
