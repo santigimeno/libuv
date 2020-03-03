@@ -513,6 +513,9 @@ TEST_DECLARE  (idna_toascii)
 TEST_DECLARE  (utf8_decode1)
 TEST_DECLARE  (uname)
 
+TEST_DECLARE  (metrics_idle_time)
+TEST_DECLARE  (metrics_idle_time_thread)
+
 TASK_LIST_START
   TEST_ENTRY_CUSTOM (platform_output, 0, 1, 5000)
 
@@ -1089,6 +1092,9 @@ TASK_LIST_START
 #ifndef __MVS__
   TEST_ENTRY  (idna_toascii)
 #endif
+
+  TEST_ENTRY  (metrics_idle_time)
+  TEST_ENTRY  (metrics_idle_time_thread)
 
 #if 0
   /* These are for testing the test runner. */

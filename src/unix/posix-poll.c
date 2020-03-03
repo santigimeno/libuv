@@ -144,6 +144,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int have_signals;
   struct pollfd* pe;
   int fd;
+  int user_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -177,6 +178,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   assert(timeout >= -1);
   time_base = loop->time;
 
+  user_timeout = timeout;
+  timeout = 0;
+
+  /* Only need to set the provider_entry_time if the event provider's timeout
+   * doesn't cause it to return immediately.
+   */
+  if (user_timeout != 0) {
+    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  }
+
   /* Loop calls to poll() and processing of results.  If we get some
    * results from poll() but they turn out not to be interesting to
    * our caller then we need to loop around and poll() again.
@@ -197,6 +208,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     SAVE_ERRNO(uv__update_time(loop));
 
     if (nfds == 0) {
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+        if (timeout == -1)
+          continue;
+        if (timeout > 0)
+          goto update_timeout;
+      }
+
       assert(timeout != -1);
       return;
     }
@@ -204,6 +224,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == -1) {
       if (errno != EINTR)
         abort();
+
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
 
       if (timeout == -1)
         continue;
@@ -250,6 +275,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       pe->revents &= w->pevents | POLLERR | POLLHUP;
 
       if (pe->revents != 0) {
+        if (w != &loop->signal_io_watcher) {
+          uv__metrics_update_idle_time(loop);
         /* Run signal watchers last.  */
         if (w == &loop->signal_io_watcher) {
           have_signals = 1;
@@ -260,6 +287,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         nevents++;
       }
     }
+
+    if (user_timeout != -2) {
+      timeout = user_timeout;
+      user_timeout = -2;
+    }
+
+    if (have_signals != 0)
+      uv__metrics_update_idle_time(loop);
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);

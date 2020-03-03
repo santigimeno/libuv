@@ -145,6 +145,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int i;
   int rc;
   int add_failed;
+  int user_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -214,6 +215,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
+  user_timeout = timeout;
+  timeout = 0;
+
+  /* Only need to set the provider_entry_time if the event provider's timeout
+   * doesn't cause it to return immediately.
+   */
+  if (user_timeout != 0) {
+    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  }
+
   for (;;) {
     nfds = pollset_poll(loop->backend_fd,
                         events,
@@ -227,6 +238,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     SAVE_ERRNO(uv__update_time(loop));
 
     if (nfds == 0) {
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+        if (timeout == -1)
+          continue;
+        if (timeout > 0)
+          goto update_timeout;
+      }
+
       assert(timeout != -1);
       return;
     }
@@ -234,6 +254,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == -1) {
       if (errno != EINTR) {
         abort();
+      }
+
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
       }
 
       if (timeout == -1)
@@ -277,6 +302,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
+      if (w != &loop->signal_io_watcher)
+        uv__metrics_update_idle_time(loop);
+
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
@@ -287,6 +315,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       nevents++;
     }
+
+    if (user_timeout != -2) {
+      timeout = user_timeout;
+      user_timeout = -2;
+    }
+
+    if (have_signals != 0)
+      uv__metrics_update_idle_time(loop);
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);

@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 int uv_loop_init(uv_loop_t* loop) {
+  uv__metrics_loop_t* mloop;
   void* saved_data;
   int err;
 
@@ -68,6 +69,13 @@ int uv_loop_init(uv_loop_t* loop) {
   if (err)
     return err;
 
+  mloop = (uv__metrics_loop_t*) uv__calloc(1, sizeof(uv__metrics_loop_t));
+
+  /* Attach the uv__metrics_loop_t instance to this loop using one of the
+   * unused fields.
+   */
+  loop->active_reqs.unused[1] = mloop;
+
   uv__signal_global_once_init();
   err = uv_signal_init(loop, &loop->child_watcher);
   if (err)
@@ -106,6 +114,8 @@ fail_rwlock_init:
 fail_signal_init:
   uv__platform_loop_delete(loop);
 
+  uv__free(mloop);
+  loop->active_reqs.unused[1] = NULL;
   return err;
 }
 
@@ -179,6 +189,9 @@ void uv__loop_close(uv_loop_t* loop) {
   uv__free(loop->watchers);
   loop->watchers = NULL;
   loop->nwatchers = 0;
+
+  uv__free(loop->active_reqs.unused[1]);
+  loop->active_reqs.unused[1] = NULL;
 }
 
 

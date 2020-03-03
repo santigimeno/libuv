@@ -22,6 +22,31 @@
 #include <atomic.h>
 #endif
 
+/* TODO(trevnorris): These are a GCC extension. Make them platform agnostic. */
+#define UV_ATOMIC_LOAD(ptr, ret)                                              \
+  do {                                                                        \
+    __atomic_load(ptr, ret, __ATOMIC_CONSUME);                                \
+  }                                                                           \
+  while(0)
+
+#define UV_ATOMIC_STORE(ptr, val)                                             \
+  do {                                                                        \
+    __atomic_store_n(ptr, val, __ATOMIC_RELEASE);                             \
+  }                                                                           \
+  while(0)
+
+#define UV_ATOMIC_EXCHANGE(ptr, ret, val)                                     \
+  do {                                                                        \
+    *ret = __atomic_exchange_n(ptr, val, __ATOMIC_ACQ_REL);                   \
+  }                                                                           \
+  while (0)
+
+#define UV_ATOMIC_ADD_FETCH(ptr, ret, val)                                    \
+  do {                                                                        \
+    *ret = __atomic_add_fetch(ptr, val, __ATOMIC_ACQ_REL);                    \
+  }                                                                           \
+  while (0)
+
 UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval));
 UV_UNUSED(static void cpu_relax(void));
 

@@ -323,4 +323,13 @@ void* uv__malloc(size_t size);
 void uv__free(void* ptr);
 void* uv__realloc(void* ptr, size_t size);
 
+typedef struct {
+  uint64_t provider_entry_time;
+  uint64_t idle_time;
+} uv__metrics_loop_t;
+
+void uv__metrics_update_idle_time(uv_loop_t* loop);
+void uv__metrics_set_provider_entry_time(uv_loop_t* loop, uint64_t time);
+uv__metrics_loop_t* uv__metrics_get_mloop(uv_loop_t* loop);
+
 #endif /* UV_COMMON_H_ */

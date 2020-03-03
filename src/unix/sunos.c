@@ -154,6 +154,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   sigset_t set;
   uint64_t base;
   uint64_t diff;
+  uint64_t idle_poll;
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
@@ -162,6 +163,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int count;
   int err;
   int fd;
+  int user_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -198,6 +200,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
+
+  user_timeout = timeout;
+  timeout = 0;
+
+  /* Only need to set the provider_entry_time if the event provider's timeout
+   * doesn't cause it to return immediately.
+   */
+  if (user_timeout != 0) {
+    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  }
 
   for (;;) {
     if (timeout != -1) {
@@ -242,6 +254,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     SAVE_ERRNO(uv__update_time(loop));
 
     if (events[0].portev_source == 0) {
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
+
       if (timeout == 0)
         return;
 
@@ -279,6 +296,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w == NULL)
         continue;
 
+      if (w == &loop->signal_io_watcher)
+        uv__metrics_update_idle_time(loop);
+
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
@@ -296,6 +316,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
         QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
     }
+
+    if (user_timeout != -2) {
+      timeout = user_timeout;
+      user_timeout = -2;
+    }
+
+    if (have_signals != 0)
+      uv__metrics_update_idle_time(loop);
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);

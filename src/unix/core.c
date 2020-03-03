@@ -20,6 +20,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "atomic-ops.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -365,6 +366,14 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
       timeout = uv_backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+
+    /* Run one final update on the idle_time in case uv__io_poll returned
+     * because the timeout expired, but no events were received. This call
+     * will be ignored if the provider_entry_time was either never set (if the
+     * timeout == 0) or was already updated b/c an event was received.
+     */
+    uv__metrics_update_idle_time(loop);
+
     uv__run_check(loop);
     uv__run_closing_handles(loop);
 
@@ -1516,4 +1525,56 @@ void uv_sleep(unsigned int msec) {
   while (rc == -1 && errno == EINTR);
 
   assert(rc == 0);
+}
+
+
+void uv__metrics_update_idle_time(uv_loop_t* loop) {
+  uv__metrics_loop_t* mloop = uv__metrics_get_mloop(loop);
+  uint64_t entry_time;
+  uint64_t idle_time;
+  uint64_t exit_time;
+
+  /* The thread running uv__metrics_update_idle_time() is always the same
+   * thread that sets provider_entry_time. So it's unnecessary to perform the
+   * atomic operation retrieving this value.
+   * Reason for this check is in case this function has been called a second
+   * time. Since it's always called just after uv__io_poll() to make sure the
+   * idle time has been correctly calculated.
+   */
+  if (mloop->provider_entry_time == 0)
+    return;
+
+  /* Grab the exit_time before starting the atomic operations. */
+  exit_time = uv_hrtime();
+
+  /* It's important to run the operations in this order. It will prevent
+   * accidentally reporting incorrect values and removes the need for a lock.
+   */
+  UV_ATOMIC_EXCHANGE(&mloop->provider_entry_time, &entry_time, 0);
+  UV_ATOMIC_ADD_FETCH(&mloop->idle_time, &idle_time, exit_time - entry_time);
+}
+
+
+void uv__metrics_set_provider_entry_time(uv_loop_t* loop, uint64_t time) {
+  uv__metrics_loop_t* mloop = uv__metrics_get_mloop(loop);
+  UV_ATOMIC_STORE(&mloop->provider_entry_time, time);
+}
+
+
+uv__metrics_loop_t* uv__metrics_get_mloop(uv_loop_t* loop) {
+  return (uv__metrics_loop_t*)loop->active_reqs.unused[1];
+}
+
+
+uint64_t uv_metrics_idle_time(uv_loop_t* loop) {
+  uv__metrics_loop_t* mloop = uv__metrics_get_mloop(loop);
+  uint64_t entry_time;
+  uint64_t idle_time;
+
+  UV_ATOMIC_LOAD(&mloop->idle_time, &idle_time);
+  UV_ATOMIC_LOAD(&mloop->provider_entry_time, &entry_time);
+
+  if (entry_time > 0)
+    idle_time += uv_hrtime() - entry_time;
+  return idle_time;
 }

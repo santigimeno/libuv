@@ -818,6 +818,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
   int op;
   int i;
+  int user_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -870,6 +871,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   real_timeout = timeout;
   int nevents = 0;
 
+  user_timeout = timeout;
+  timeout = 0;
+
+  /* Only need to set the provider_entry_time if the event provider's timeout
+   * doesn't cause it to return immediately.
+   */
+  if (user_timeout != 0) {
+    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  }
+
   nfds = 0;
   for (;;) {
     if (sizeof(int32_t) == sizeof(long) && timeout >= max_safe_timeout)
@@ -887,6 +898,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == 0) {
       assert(timeout != -1);
 
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
+
       if (timeout > 0) {
         timeout = real_timeout - timeout;
         continue;
@@ -899,6 +915,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       if (errno != EINTR)
         abort();
+
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
 
       if (timeout == -1)
         continue;
@@ -954,12 +975,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pe->events |= w->pevents & (POLLIN | POLLOUT);
 
       if (pe->events != 0) {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->events);
         nevents++;
       }
     }
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (user_timeout != -2) {
+      timeout = user_timeout;
+      user_timeout = -2;
+    }
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {

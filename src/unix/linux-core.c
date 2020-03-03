@@ -226,6 +226,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
   int op;
   int i;
+  int user_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -281,6 +282,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   count = 48; /* Benchmarks suggest this gives the best throughput. */
   real_timeout = timeout;
 
+  user_timeout = timeout;
+  timeout = 0;
+
+  /* Only need to set the provider_entry_time if the event provider's timeout
+   * doesn't cause it to return immediately.
+   */
+  if (user_timeout != 0) {
+    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  }
+
   for (;;) {
     /* See the comment for max_safe_timeout for an explanation of why
      * this is necessary.  Executive summary: kernel bug workaround.
@@ -327,6 +338,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == 0) {
       assert(timeout != -1);
 
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
+
+      if (timeout == -1)
+        continue;
+
       if (timeout == 0)
         return;
 
@@ -345,6 +364,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       if (errno != EINTR)
         abort();
+
+      if (user_timeout != -2) {
+        timeout = user_timeout;
+        user_timeout = -2;
+      }
 
       if (timeout == -1)
         continue;
@@ -422,6 +446,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           w->pevents & (POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
 
       if (pe->events != 0) {
+        /* Signals aren't processed until after this loop. So don't record
+         * time until an event or after this loop.
+         */
+        if (w != &loop->signal_io_watcher)
+          uv__metrics_update_idle_time(loop);
+
         /* Run signal watchers last.  This also affects child process watchers
          * because those are implemented in terms of signal watchers.
          */
@@ -433,6 +463,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         nevents++;
       }
     }
+
+    if (user_timeout != -2) {
+      timeout = user_timeout;
+      user_timeout = -2;
+    }
+
+    /* Signals need to be processed, but no events were processed. */
+    if (have_signals != 0)
+      uv__metrics_update_idle_time(loop);
 
     if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);

@@ -1227,6 +1227,7 @@ UV_EXTERN int uv_os_gethostname(char* buffer, size_t* size);
 
 UV_EXTERN int uv_os_uname(uv_utsname_t* buffer);
 
+UV_EXTERN uint64_t uv_metrics_idle_time(uv_loop_t* loop);
 
 typedef enum {
   UV_FS_UNKNOWN = -1,
