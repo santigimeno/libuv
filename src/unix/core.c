@@ -1529,10 +1529,12 @@ void uv_sleep(unsigned int msec) {
 
 
 void uv__metrics_update_idle_time(uv_loop_t* loop) {
-  uv__metrics_loop_t* mloop = uv__metrics_get_mloop(loop);
+  uv__metrics_loop_t* mloop;
   uint64_t entry_time;
   uint64_t idle_time;
   uint64_t exit_time;
+
+  mloop = uv__metrics_get_mloop(loop);
 
   /* The thread running uv__metrics_update_idle_time() is always the same
    * thread that sets provider_entry_time. So it's unnecessary to perform the

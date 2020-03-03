@@ -340,6 +340,7 @@ if(LIBUV_BUILD_TESTS)
        test/test-loop-handles.c
        test/test-loop-stop.c
        test/test-loop-time.c
+       test/test-metrics.c
        test/test-multiple-listen.c
        test/test-mutexes.c
        test/test-osx-select.c

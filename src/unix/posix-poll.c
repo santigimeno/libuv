@@ -184,9 +184,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   /* Only need to set the provider_entry_time if the event provider's timeout
    * doesn't cause it to return immediately.
    */
-  if (user_timeout != 0) {
+  if (user_timeout != 0)
     uv__metrics_set_provider_entry_time(loop, uv_hrtime());
-  }
 
   /* Loop calls to poll() and processing of results.  If we get some
    * results from poll() but they turn out not to be interesting to

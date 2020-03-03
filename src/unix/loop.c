@@ -37,6 +37,15 @@ int uv_loop_init(uv_loop_t* loop) {
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
 
+  mloop = (uv__metrics_loop_t*) uv__calloc(1, sizeof(uv__metrics_loop_t));
+  if (mloop == NULL)
+    return UV_ENOMEM;
+
+  /* Attach the uv__metrics_loop_t instance to this loop using one of the
+   * unused fields.
+   */
+  loop->active_reqs.unused[1] = mloop;
+
   heap_init((struct heap*) &loop->timer_heap);
   QUEUE_INIT(&loop->wq);
   QUEUE_INIT(&loop->idle_handles);
@@ -68,13 +77,6 @@ int uv_loop_init(uv_loop_t* loop) {
   err = uv__platform_loop_init(loop);
   if (err)
     return err;
-
-  mloop = (uv__metrics_loop_t*) uv__calloc(1, sizeof(uv__metrics_loop_t));
-
-  /* Attach the uv__metrics_loop_t instance to this loop using one of the
-   * unused fields.
-   */
-  loop->active_reqs.unused[1] = mloop;
 
   uv__signal_global_once_init();
   err = uv_signal_init(loop, &loop->child_watcher);
