@@ -279,12 +279,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       pe->revents &= w->pevents | POLLERR | POLLHUP;
 
       if (pe->revents != 0) {
-        if (w != &loop->signal_io_watcher) {
-          uv__metrics_update_idle_time(loop);
         /* Run signal watchers last.  */
         if (w == &loop->signal_io_watcher) {
           have_signals = 1;
         } else {
+          uv__metrics_update_idle_time(loop);
           w->cb(loop, w, pe->revents);
         }
 
@@ -297,11 +296,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       user_timeout = -2;
     }
 
-    if (have_signals != 0)
+    if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-
-    if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+    }
 
     loop->poll_fds_iterating = 0;
 

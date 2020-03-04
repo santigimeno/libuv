@@ -300,16 +300,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w == NULL)
         continue;
 
-      if (w == &loop->signal_io_watcher)
-        uv__metrics_update_idle_time(loop);
-
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
-      if (w == &loop->signal_io_watcher)
+      if (w == &loop->signal_io_watcher) {
         have_signals = 1;
-      else
+      } else {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->portev_events);
+      }
 
       nevents++;
 
@@ -326,11 +325,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       user_timeout = -2;
     }
 
-    if (have_signals != 0)
+    if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-
-    if (have_signals != 0)
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+    }
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
