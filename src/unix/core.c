@@ -1561,8 +1561,8 @@ void uv__metrics_update_idle_time(uv_loop_t* loop) {
 
 
 void uv__metrics_set_provider_entry_time(uv_loop_t* loop) {
-  uint64_t now;
   uv__metrics_loop_t* mloop;
+  uint64_t now;
 
   if (!(loop->flags & UV_LOOP_IDLE_TIME))
     return;
@@ -1579,10 +1579,11 @@ uv__metrics_loop_t* uv__metrics_get_mloop(uv_loop_t* loop) {
 
 
 uint64_t uv_metrics_idle_time(uv_loop_t* loop) {
-  uv__metrics_loop_t* mloop = uv__metrics_get_mloop(loop);
+  uv__metrics_loop_t* mloop;
   uint64_t entry_time;
   uint64_t idle_time;
 
+  mloop = uv__metrics_get_mloop(loop);
   UV_ATOMIC_LOAD(&mloop->idle_time, &idle_time);
   UV_ATOMIC_LOAD(&mloop->provider_entry_time, &entry_time);
 
