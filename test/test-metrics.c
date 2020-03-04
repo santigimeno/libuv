@@ -26,6 +26,7 @@ TEST_IMPL(metrics_idle_time) {
   int r;
   uint64_t pt;
 
+  uv_loop_configure(uv_default_loop(), UV_LOOP_IDLE_TIME);
   uv_timer_init(uv_default_loop(), &timer);
   uv_timer_start(&timer, timer_noop_cb, 100, 0);
 
@@ -65,6 +66,7 @@ static void metrics_thread_routine_cb(void* arg) {
   int r;
 
   uv_loop_init(&loop);
+  uv_loop_configure(&loop, UV_LOOP_IDLE_TIME);
   uv_timer_init(&loop, &mthread->ttimer);
   uv_timer_start(&mthread->ttimer, metrics_thread_timer_cb, 100, 100);
 
@@ -90,6 +92,7 @@ TEST_IMPL(metrics_idle_time_thread) {
   mthread.thread_timer_count = 0;
 
   uv_loop_init(&mthread.mloop);
+  uv_loop_configure(&mthread.mloop, UV_LOOP_IDLE_TIME);
   uv_async_init(&mthread.mloop, &mthread.async, metrics_thread_async_cb);
   uv_timer_init(&mthread.mloop, &mthread.timer);
   uv_timer_start(&mthread.timer, timer_noop_cb, 100, 100);

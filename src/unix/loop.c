@@ -198,6 +198,11 @@ void uv__loop_close(uv_loop_t* loop) {
 
 
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
+  if (option == UV_LOOP_IDLE_TIME) {
+    loop->flags |= UV_LOOP_IDLE_TIME;
+    return 0;
+  }
+
   if (option != UV_LOOP_BLOCK_SIGNAL)
     return UV_ENOSYS;
 

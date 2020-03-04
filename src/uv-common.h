@@ -329,7 +329,7 @@ typedef struct {
 } uv__metrics_loop_t;
 
 void uv__metrics_update_idle_time(uv_loop_t* loop);
-void uv__metrics_set_provider_entry_time(uv_loop_t* loop, uint64_t time);
+void uv__metrics_set_provider_entry_time(uv_loop_t* loop);
 uv__metrics_loop_t* uv__metrics_get_mloop(uv_loop_t* loop);
 
 #endif /* UV_COMMON_H_ */

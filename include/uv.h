@@ -247,7 +247,8 @@ typedef struct uv_utsname_s uv_utsname_t;
 typedef struct uv_statfs_s uv_statfs_t;
 
 typedef enum {
-  UV_LOOP_BLOCK_SIGNAL
+  UV_LOOP_BLOCK_SIGNAL = 1,
+  UV_LOOP_IDLE_TIME = 2
 } uv_loop_option;
 
 typedef enum {

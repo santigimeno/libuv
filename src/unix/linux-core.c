@@ -282,14 +282,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   count = 48; /* Benchmarks suggest this gives the best throughput. */
   real_timeout = timeout;
 
-  user_timeout = timeout;
-  timeout = 0;
+  if (loop->flags & UV_LOOP_IDLE_TIME) {
+    user_timeout = timeout;
+    timeout = 0;
+  } else {
+    user_timeout = -2;
+  }
 
   /* Only need to set the provider_entry_time if the event provider's timeout
-   * doesn't cause it to return immediately.
+   * doesn't cause it to return immediately or if the loop is configured to
+   * collect idle time metrics.
    */
-  if (user_timeout != 0)
-    uv__metrics_set_provider_entry_time(loop, uv_hrtime());
+  if (user_timeout != 0 && user_timeout != -2)
+    uv__metrics_set_provider_entry_time(loop);
 
   for (;;) {
     /* See the comment for max_safe_timeout for an explanation of why
