@@ -25,25 +25,25 @@
 /* TODO(trevnorris): These are a GCC extension. Make them platform agnostic. */
 #define UV_ATOMIC_LOAD(ptr, ret)                                              \
   do {                                                                        \
-    __atomic_load(ptr, ret, __ATOMIC_CONSUME);                                \
+    *ret = __sync_fetch_and_add(ptr, 0);                                \
   }                                                                           \
   while(0)
 
 #define UV_ATOMIC_STORE(ptr, val)                                             \
   do {                                                                        \
-    __atomic_store_n(ptr, val, __ATOMIC_RELEASE);                             \
+    __sync_lock_test_and_set(ptr, val);                             \
   }                                                                           \
   while(0)
 
 #define UV_ATOMIC_EXCHANGE(ptr, ret, val)                                     \
   do {                                                                        \
-    *ret = __atomic_exchange_n(ptr, val, __ATOMIC_ACQ_REL);                   \
+    *ret = __sync_lock_test_and_set(ptr, val);                   \
   }                                                                           \
   while (0)
 
 #define UV_ATOMIC_ADD_FETCH(ptr, ret, val)                                    \
   do {                                                                        \
-    *ret = __atomic_add_fetch(ptr, val, __ATOMIC_ACQ_REL);                    \
+    *ret = __sync_add_and_fetch(ptr, val);                    \
   }                                                                           \
   while (0)
 
