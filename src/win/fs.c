@@ -2240,13 +2240,315 @@ accesscheck_cleanup:
   SET_REQ_SUCCESS(req);
 }
 
+static void build_access_struct(EXPLICIT_ACCESS_W* ea, PSID owner,
+                                TRUSTEE_TYPE user_type, mode_t mode_triplet,
+                                ACCESS_MODE allow_deny) {
+  /*
+   * We map the typical POSIX mode bits r/w/x as the Windows
+   * FILE_GENERIC_{READ,WRITE,EXECUTE} permissions with a little bit of of extra permissions
+   * added on, to deal with directories and win32 idiosyncrasies.
+   */
+  ZeroMemory(ea, sizeof(EXPLICIT_ACCESS_W));
+
+  /*
+   * Initialize two EXLPICIT_ACCESS structures; one to explicitly allow things, the
+   * other to explicitly deny them.  We leave no middle ground for inheritance to mess
+   * things up.
+   */
+  ea->grfAccessPermissions = 0;
+  ea->grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+  ea->Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+  ea->Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea->Trustee.TrusteeType = user_type;
+  ea->Trustee.ptstrName = owner;
+
+  ea->grfAccessMode = allow_deny;
+
+  /*
+   * We would like to use FILE_GENERIC_* for everything, but unfortunately:
+   *
+   * - This does not include the rights for a directory to delete its children,
+   *   so we include that manually with the "write" permission by including the
+   *   FILE_ADD_SUBDIRECTORY and FILE_DELETE_CHILD permissions.
+   * - All FILE_GENERIC_* defines share the SYNCHRONIZE permission, which means
+   *   that if we deny FILE_GENERIC_WRITE but allow FILE_GENERIC_READ, that one
+   *   permission will still be denied.  We work around this by only denying the
+   *   SYNCHRONIZE permission if read is not allowed, allowing it otherwise.
+   * - We want to be able to set things as read-only even after the ACL has been
+   *   set, so we never give up the FILE_WRITE_ATTRIBUTES permission, unless we're
+   *   actually being set to 0o000.
+   */
+
+  if (mode_triplet & 0x1) {
+    ea->grfAccessPermissions |= STANDARD_RIGHTS_EXECUTE | FILE_READ_ATTRIBUTES | FILE_EXECUTE;
+    if (allow_deny == GRANT_ACCESS) {
+      ea->grfAccessPermissions |= SYNCHRONIZE | FILE_WRITE_ATTRIBUTES;
+    }
+  }
+
+  if (mode_triplet & 0x2) {
+    ea->grfAccessPermissions |= STANDARD_RIGHTS_WRITE | FILE_WRITE_DATA | FILE_WRITE_EA | FILE_APPEND_DATA | FILE_ADD_SUBDIRECTORY | FILE_DELETE_CHILD;
+    if (allow_deny == GRANT_ACCESS) {
+      ea->grfAccessPermissions |= SYNCHRONIZE | FILE_WRITE_ATTRIBUTES;
+    }
+  }
+
+  if (mode_triplet & 0x4) {
+    ea->grfAccessPermissions |= FILE_GENERIC_READ | FILE_WRITE_ATTRIBUTES;
+  }
+}
 
 static void fs__chmod(uv_fs_t* req) {
-  int result = _wchmod(req->file.pathw, req->fs.info.mode);
-  if (result == -1)
-    SET_REQ_WIN32_ERROR(req, _doserrno);
-  else
-    SET_REQ_RESULT(req, 0);
+  PACL pOldDACL = NULL, pNewDACL = NULL;
+  PSID psidOwner = NULL, psidGroup = NULL, psidEveryone = NULL,
+       psidNull = NULL, psidCreatorGroup = NULL;
+  PSECURITY_DESCRIPTOR pSD = NULL;
+  PEXPLICIT_ACCESS_W ea = NULL, pOldEAs = NULL;
+  SECURITY_INFORMATION si = NULL;
+  DWORD numGroups = 0, tokenAccess = 0, u_mode = 0, g_mode = 0, o_mode = 0,
+        u_deny_mode = 0, g_deny_mode = 0, attr = 0, new_attr = 0;
+  HANDLE hToken = NULL, hImpersonatedToken = NULL;
+  ULONG numOldEAs = 0, numNewEAs = 0, numOtherGroups = 0,
+        ea_idx = 0, ea_write_idx = 0;
+
+  /* Create well-known SIDs for various global groups */
+  SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
+  SID_IDENTIFIER_AUTHORITY SIDAuthNull = SECURITY_NULL_SID_AUTHORITY;
+  SID_IDENTIFIER_AUTHORITY SIDAuthCreator = SECURITY_CREATOR_SID_AUTHORITY;
+
+  if (!AllocateAndInitializeSid(&SIDAuthWorld, 1, SECURITY_WORLD_RID,
+                                0, 0, 0, 0, 0, 0, 0, &psidEveryone) ||
+      !AllocateAndInitializeSid(&SIDAuthNull, 1, SECURITY_NULL_RID,
+                                0, 0, 0, 0, 0, 0, 0, &psidNull) ||
+      !AllocateAndInitializeSid(&SIDAuthCreator, 1, SECURITY_CREATOR_GROUP_RID,
+                                0, 0, 0, 0, 0, 0, 0, &psidCreatorGroup) ||
+      !AllocateAndInitializeSid(&SIDAuthWorld, 1, SECURITY_WORLD_RID,
+                                0, 0, 0, 0, 0, 0, 0, &psidEveryone)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+  }
+
+  /* Get the old DACL so that we can merge into it */
+  si = OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
+       DACL_SECURITY_INFORMATION;
+  if (ERROR_SUCCESS != GetNamedSecurityInfoW(req->file.pathw, SE_FILE_OBJECT,
+                                             si, &psidOwner, &psidGroup,
+                                             &pOldDACL, NULL, &pSD)) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+
+  /* Extract EAs from old DACL */
+  if (ERROR_SUCCESS != GetExplicitEntriesFromAclW(pOldDACL, &numOldEAs,
+                                                  &pOldEAs)) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+
+  /*
+   * Work around Win32 bug where GetExplicitEntriesFromAclW() fails on newly-created files;
+   * We fix it by forcibly clearing some kind of cache by setting the security info with the
+   * old DACL, then attempting to read it in again.
+   */
+  if (numOldEAs != pOldDACL->AceCount) {
+    if (ERROR_SUCCESS != SetNamedSecurityInfoW(
+              req->file.pathw,
+              SE_FILE_OBJECT,
+              DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+              NULL, NULL, pOldDACL, NULL)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+    if (pSD != NULL) {
+      LocalFree(pSD);
+      pSD = NULL;
+    }
+    if (ERROR_SUCCESS != GetNamedSecurityInfoW(req->file.pathw, SE_FILE_OBJECT,
+                                               si, &psidOwner, &psidGroup,
+                                               &pOldDACL, NULL, &pSD)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+    if (pOldEAs != NULL) {
+      LocalFree(pOldEAs);
+      pOldEAs = NULL;
+    }
+    if (ERROR_SUCCESS != GetExplicitEntriesFromAclW(pOldDACL, &numOldEAs,
+                                                    &pOldEAs)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+  }
+
+  /* If the file does not contain a group owner, we will use the user's 'Creator Group ID' instead */
+  if (EqualSid(psidGroup, psidNull)) {
+    psidGroup = psidCreatorGroup;
+  }
+
+  /*
+   * We next need to scan all groups that the current user "belongs" to, in order to
+   * set the permissions for those groups to be the same as the "group" bit; so first
+   * we collect a list of group PSIDs:
+   */
+  tokenAccess = TOKEN_IMPERSONATE | TOKEN_QUERY | TOKEN_DUPLICATE |
+                STANDARD_RIGHTS_READ;
+  if (!OpenProcessToken(GetCurrentProcess(), tokenAccess, &hToken )) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+  if (!DuplicateToken(hToken, SecurityImpersonation, &hImpersonatedToken)) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+
+  /* Iterate over all old ACEs, looking for groups that we belong to */
+  for (ea_idx=0; ea_idx<numOldEAs; ++ea_idx) {
+    BOOL isMember = FALSE;
+    PSID pEASid = (PSID)pOldEAs[ea_idx].Trustee.ptstrName;
+    /* Skip this EA if it isn't an SID, or it is "Everyone" or our actual group */
+    if (pOldEAs[ea_idx].Trustee.TrusteeForm != TRUSTEE_IS_SID ||
+        EqualSid(pEASid, psidEveryone) ||
+        EqualSid(pEASid, psidGroup)) {
+      continue;
+    }
+
+    /* Check to see if our user is a member of this group */
+    if (!CheckTokenMembership(hImpersonatedToken, pEASid, &isMember)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+
+    /* If we're a member, then count it */
+    if (isMember) {
+      numOtherGroups++;
+    }
+  }
+
+  /* Create an ACE for each triplet (user, group, other) */
+  numNewEAs = 8 + 3*numOtherGroups;
+  ea = (PEXPLICIT_ACCESS_W) malloc(sizeof(EXPLICIT_ACCESS_W)*numNewEAs);
+  u_mode = ((req->fs.info.mode & S_IRWXU) >> 6);
+  g_mode = ((req->fs.info.mode & S_IRWXG) >> 3);
+  o_mode = ((req->fs.info.mode & S_IRWXO) >> 0);
+
+  /* We start by revoking previous permissions for trustees we care about */
+  build_access_struct(&ea[0], psidOwner,    TRUSTEE_IS_USER,  0, REVOKE_ACCESS);
+  build_access_struct(&ea[1], psidGroup,    TRUSTEE_IS_GROUP, 0, REVOKE_ACCESS);
+  build_access_struct(&ea[2], psidEveryone, TRUSTEE_IS_GROUP, 0, REVOKE_ACCESS);
+
+  /*
+   * We also add explicit denies to user and group if the user shouldn't have
+   * a permission but the group or everyone can, for instance.
+   */
+  u_deny_mode = (~u_mode) & (g_mode | o_mode);
+  g_deny_mode = (~g_mode) & o_mode;
+  build_access_struct(&ea[3], psidOwner, TRUSTEE_IS_USER,  u_deny_mode, DENY_ACCESS);
+  build_access_struct(&ea[4], psidGroup, TRUSTEE_IS_GROUP, g_deny_mode, DENY_ACCESS);
+
+  /* Next, add explicit allows for (owner, group, other) */
+  build_access_struct(&ea[5], psidOwner,    TRUSTEE_IS_USER,  u_mode, SET_ACCESS);
+  build_access_struct(&ea[6], psidGroup,    TRUSTEE_IS_GROUP, g_mode, SET_ACCESS);
+  build_access_struct(&ea[7], psidEveryone, TRUSTEE_IS_GROUP, o_mode, SET_ACCESS);
+
+  /*
+   * Iterate over all old ACEs, looking for groups that we belong to, and setting
+   * the appropriate access bits for those groups (as g_mode)
+   */
+  ea_write_idx = 8;
+  for (ea_idx=0; ea_idx<numOldEAs; ++ea_idx) {
+    BOOL isMember = FALSE;
+    PSID pEASid = (PSID)pOldEAs[ea_idx].Trustee.ptstrName;
+    /* Skip this EA if it isn't an SID, or it is "Everyone" or our actual group */
+    if (pOldEAs[ea_idx].Trustee.TrusteeForm != TRUSTEE_IS_SID ||
+        EqualSid(pEASid, psidEveryone) ||
+        EqualSid(pEASid, psidGroup)) {
+      continue;
+    }
+
+    /* Check to see if our user is a member of this group */
+    if (!CheckTokenMembership(hImpersonatedToken, pEASid, &isMember)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+
+    /*
+     * If we're a member, then count it.  We limit our `ea_write_idx` to avoid
+     * the unlikely event that we have been added to a group since we first
+     * calculated `numOtherGroups`.
+     */
+    if (isMember && ea_write_idx < numNewEAs) {
+      build_access_struct(&ea[ea_write_idx], pEASid, TRUSTEE_IS_GROUP, 0, REVOKE_ACCESS);
+      build_access_struct(&ea[ea_write_idx + 1], pEASid, TRUSTEE_IS_GROUP, g_deny_mode, DENY_ACCESS);
+      build_access_struct(&ea[ea_write_idx + 2], pEASid, TRUSTEE_IS_GROUP, g_mode, SET_ACCESS);
+      ea_write_idx += 3;
+    }
+  }
+
+  /* Set entries in the ACL object */
+  if (ERROR_SUCCESS != SetEntriesInAclW(numNewEAs, &ea[0], pOldDACL, &pNewDACL)) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+
+  /* If none of the write bits are set, we want to mark the file as read-only.
+   * Alternatively, if it was marked as read-only, unmark it if we have at least
+   * one writable group set. */
+  attr = GetFileAttributesW(req->file.pathw);
+  if (attr == INVALID_FILE_ATTRIBUTES) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+  new_attr = attr;
+  if ((req->fs.info.mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0) {
+    new_attr |= FILE_ATTRIBUTE_READONLY;
+  }
+  if ((req->fs.info.mode & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0) {
+    new_attr &= ~FILE_ATTRIBUTE_READONLY;
+  }
+
+  /*
+   * Now we actually do the setting.  We only call SetFileAttributes() if the
+   * attributes have actually changed.
+   */
+  if (new_attr != attr) {
+    if (!SetFileAttributesW(req->file.pathw, new_attr)) {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      goto chmod_cleanup;
+    }
+  }
+  if (ERROR_SUCCESS != SetNamedSecurityInfoW(
+              req->file.pathw,
+              SE_FILE_OBJECT,
+              DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+              NULL, NULL, pNewDACL, NULL)) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    goto chmod_cleanup;
+  }
+
+  SET_REQ_SUCCESS(req);
+
+chmod_cleanup:
+  if (pSD != NULL) {
+    LocalFree(pSD);
+  }
+  if (pNewDACL != NULL) {
+    LocalFree(pNewDACL);
+  }
+  if (psidEveryone != NULL) {
+    FreeSid(psidEveryone);
+  }
+  if (psidNull != NULL) {
+    FreeSid(psidNull);
+  }
+  if (psidCreatorGroup != NULL) {
+    FreeSid(psidCreatorGroup);
+  }
+  if (pOldEAs != NULL) {
+    LocalFree(pOldEAs);
+  }
+  if (ea != NULL) {
+    free(ea);
+  }
 }
 
 
