@@ -226,9 +226,9 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
         do
           r = recv(context->sock, buffer, sizeof buffer, 0);
         while (r == -1 && errno == EINTR);
-        ASSERT(r >= 0);
-
-        if (r > 0) {
+        if (r == -1) {
+          ASSERT(got_eagain());
+        } else if (r > 0) {
           context->read += r;
         } else {
           /* Got FIN. */

@@ -238,7 +238,7 @@ typedef struct {
   void* check_handles[2];                                                     \
   void* idle_handles[2];                                                      \
   void* async_handles[2];                                                     \
-  void (*async_unused)(void);  /* TODO(bnoordhuis) Remove in libuv v2. */     \
+  void* io_uring;                                                             \
   uv__io_t async_io_watcher;                                                  \
   int async_wfd;                                                              \
   struct {                                                                    \

@@ -134,7 +134,8 @@ typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 
 /* loop flags */
 enum {
-  UV_LOOP_BLOCK_SIGPROF = 1
+  UV_LOOP_BLOCK_SIGPROF = 1,
+  UV_LOOP_USE_URING = 2
 };
 
 /* flags of excluding ifaddr */
@@ -316,6 +317,11 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
 
 #if defined(__linux__)
 int uv__inotify_fork(uv_loop_t* loop, void* old_watchers);
+int uv__uring_platform_loop_init(uv_loop_t* loop);
+void uv__uring_platform_loop_delete(uv_loop_t* loop);
+void uv__uring_platform_invalidate_fd(uv_loop_t* loop, int fd);
+int uv__uring_io_check_fd(uv_loop_t* loop, int fd);
+void uv__uring_io_poll(uv_loop_t* loop, int timeout);
 #endif
 
 typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);

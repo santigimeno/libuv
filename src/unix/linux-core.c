@@ -82,9 +82,23 @@ static int read_times(FILE* statfile_fp,
 static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static uint64_t read_cpufreq(unsigned int cpunum);
 
+static int io_uring_unavailable;
+
 
 int uv__platform_loop_init(uv_loop_t* loop) {
   int fd;
+  int r;
+
+  if (!io_uring_unavailable) {
+    r = uv__uring_platform_loop_init(loop);
+    if (r != 0) {
+      io_uring_unavailable = 1;
+    } else {
+      loop->flags |= UV_LOOP_USE_URING;
+      return r;
+    }
+  }
+
   fd = epoll_create1(O_CLOEXEC);
 
   /* epoll_create1() can fail either because it's not implemented (old kernel)
@@ -114,8 +128,11 @@ int uv__io_fork(uv_loop_t* loop) {
 
   old_watchers = loop->inotify_watchers;
 
-  uv__close(loop->backend_fd);
-  loop->backend_fd = -1;
+  if (!(loop->flags & UV_LOOP_USE_URING)) {
+    uv__close(loop->backend_fd);
+    loop->backend_fd = -1;
+  }
+
   uv__platform_loop_delete(loop);
 
   err = uv__platform_loop_init(loop);
@@ -127,6 +144,9 @@ int uv__io_fork(uv_loop_t* loop) {
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
+  if (loop->flags & UV_LOOP_USE_URING)
+    return uv__uring_platform_loop_delete(loop);
+
   if (loop->inotify_fd == -1) return;
   uv__io_stop(loop, &loop->inotify_read_watcher, POLLIN);
   uv__close(loop->inotify_fd);
@@ -139,6 +159,9 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   struct epoll_event dummy;
   uintptr_t i;
   uintptr_t nfds;
+
+  if (loop->flags & UV_LOOP_USE_URING)
+    return uv__uring_platform_invalidate_fd(loop, fd);
 
   assert(loop->watchers != NULL);
   assert(fd >= 0);
@@ -170,6 +193,9 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
   struct epoll_event e;
   int rc;
+
+  if (loop->flags & UV_LOOP_USE_URING)
+    return uv__uring_io_check_fd(loop, fd);
 
   memset(&e, 0, sizeof(e));
   e.events = POLLIN;
@@ -220,6 +246,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int i;
   int user_timeout;
   int reset_timeout;
+
+  if (loop->flags & UV_LOOP_USE_URING)
+    return uv__uring_io_poll(loop, timeout);
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
