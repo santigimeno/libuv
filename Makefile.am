@@ -115,12 +115,14 @@ libuv_la_SOURCES += src/unix/async.c \
                    src/unix/tty.c \
                    src/unix/udp.c
 # TODO this isn't right
-# liburing_LIBRARIES = liburing.a
-# liburing_a_SOURCES = deps/liburing/src/queue.c \
-#                      deps/liburing/src/register.c \
-#                      deps/liburing/src/setup.c \
-#                      deps/liburing/src/syscall.c
-# libuv_la_LIBADD = liburing
+lib_LIBRARIES = liburing.a
+liburing_adir = $(includedir)/uring
+liburing_a_CFLAGS = -fPIC
+liburing_a_SOURCES = deps/liburing/src/queue.c \
+                     deps/liburing/src/register.c \
+                     deps/liburing/src/setup.c \
+                     deps/liburing/src/syscall.c
+libuv_la_LIBADD = liburing.a
 
 endif  # WINNT
 
