@@ -242,6 +242,7 @@ int uv__getiovmax(void) {
 
 static void uv__finish_close(uv_handle_t* handle) {
   uv_signal_t* sh;
+  uv_udp_t* uh;
 
   /* Note: while the handle is in the UV_HANDLE_CLOSING state now, it's still
    * possible for it to be active in the sense that uv__is_active() returns
@@ -288,7 +289,15 @@ static void uv__finish_close(uv_handle_t* handle) {
       break;
 
     case UV_UDP:
-      uv__udp_finish_close((uv_udp_t*)handle);
+      uh = (uv_udp_t*)handle;
+      /* Don't finish yet if there're pending write requests (io_uring only) */
+      if (!QUEUE_EMPTY(&uh->write_pending_queue)) {
+        handle->flags ^= UV_HANDLE_CLOSED;
+        uv__make_close_pending(handle);  /* Back into the queue. */
+        return;
+      }
+
+      uv__udp_finish_close(uh);
       break;
 
     default:
@@ -871,6 +880,9 @@ void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
   w->fd = fd;
   w->events = 0;
   w->pevents = 0;
+#if defined(__linux__)
+  w->oneshot = 0;
+#endif
 
 #if defined(UV_HAVE_KQUEUE)
   w->rcount = 0;

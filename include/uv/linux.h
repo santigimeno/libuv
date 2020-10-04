@@ -24,8 +24,14 @@
 
 #include <liburing.h>
 
+enum {
+  UV__URING_UDP_RECVMSG = 1,
+  UV__URING_UDP_SENDMSG
+};
+
 struct uv__io_uring_data {
   struct io_uring ring;
+  unsigned sync_limit;
 };
 
 #define UV_PLATFORM_LOOP_FIELDS                                               \
@@ -36,5 +42,8 @@ struct uv__io_uring_data {
 #define UV_PLATFORM_FS_EVENT_FIELDS                                           \
   void* watchers[2];                                                          \
   int wd;                                                                     \
+
+#define UV_IO_PRIVATE_PLATFORM_FIELDS                                         \
+  int oneshot;                                                                \
 
 #endif /* UV_LINUX_H */

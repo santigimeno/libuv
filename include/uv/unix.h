@@ -280,6 +280,7 @@ typedef struct {
   ssize_t status;                                                             \
   uv_udp_send_cb send_cb;                                                     \
   uv_buf_t bufsml[4];                                                         \
+  struct msghdr h;                                                            \
 
 #define UV_HANDLE_PRIVATE_FIELDS                                              \
   uv_handle_t* next_closing;                                                  \
@@ -305,6 +306,10 @@ typedef struct {
   uv__io_t io_watcher;                                                        \
   void* write_queue[2];                                                       \
   void* write_completed_queue[2];                                             \
+  void* write_pending_queue[2];                                               \
+  uv_buf_t recv_buf;                                                          \
+  struct sockaddr_storage peer;                                               \
+  struct msghdr h;                                                            \
 
 #define UV_PIPE_PRIVATE_FIELDS                                                \
   const char* pipe_fname; /* strdup'ed */

@@ -91,6 +91,9 @@ void uv__udp_close(uv_udp_t* handle) {
   uv__io_close(handle->loop, &handle->io_watcher);
   uv__handle_stop(handle);
 
+  if (!QUEUE_EMPTY(&handle->write_pending_queue))
+    return;
+
   if (handle->io_watcher.fd != -1) {
     uv__close(handle->io_watcher.fd);
     handle->io_watcher.fd = -1;
@@ -101,6 +104,16 @@ void uv__udp_close(uv_udp_t* handle) {
 void uv__udp_finish_close(uv_udp_t* handle) {
   uv_udp_send_t* req;
   QUEUE* q;
+
+  /* Return ECANCELED in case there was a pending io_uring recvmsg op */
+  if (handle->flags & UV_HANDLE_READ_PENDING) {
+    handle->recv_cb(handle, UV_ECANCELED, &handle->recv_buf, NULL, 0);
+  }
+
+  if (handle->io_watcher.fd != -1) {
+    uv__close(handle->io_watcher.fd);
+    handle->io_watcher.fd = -1;
+  }
 
   assert(!uv__io_active(&handle->io_watcher, POLLIN | POLLOUT));
   assert(handle->io_watcher.fd == -1);
@@ -116,6 +129,7 @@ void uv__udp_finish_close(uv_udp_t* handle) {
 
   uv__udp_run_completed(handle);
 
+  assert(QUEUE_EMPTY(&handle->write_pending_queue));
   assert(handle->send_queue_size == 0);
   assert(handle->send_queue_count == 0);
 
@@ -176,11 +190,18 @@ static void uv__udp_io(uv_loop_t* loop, uv__io_t* w, unsigned int revents) {
   handle = container_of(w, uv_udp_t, io_watcher);
   assert(handle->type == UV_UDP);
 
-  if (revents & POLLIN)
-    uv__udp_recvmsg(handle);
+  if (revents & POLLIN) {
+    if (loop->flags & UV_LOOP_USE_URING)
+      uv__uring_udp_recvmsg(handle);
+    else
+      uv__udp_recvmsg(handle);
+  }
 
   if (revents & POLLOUT) {
-    uv__udp_sendmsg(handle);
+    if (loop->flags & UV_LOOP_USE_URING)
+      uv__uring_udp_sendmsg(handle);
+    else
+      uv__udp_sendmsg(handle);
     uv__udp_run_completed(handle);
   }
 }
@@ -696,17 +717,22 @@ int uv__udp_send(uv_udp_send_t* req,
   QUEUE_INSERT_TAIL(&handle->write_queue, &req->queue);
   uv__handle_start(handle);
 
-  if (empty_queue && !(handle->flags & UV_HANDLE_UDP_PROCESSING)) {
-    uv__udp_sendmsg(handle);
-
-    /* `uv__udp_sendmsg` may not be able to do non-blocking write straight
-     * away. In such cases the `io_watcher` has to be queued for asynchronous
-     * write.
-     */
-    if (!QUEUE_EMPTY(&handle->write_queue))
-      uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
-  } else {
+  if (handle->loop->flags & UV_LOOP_USE_URING) {
     uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
+    uv__uring_udp_sendmsg(handle);
+  } else {
+    if (empty_queue && !(handle->flags & UV_HANDLE_UDP_PROCESSING)) {
+      uv__udp_sendmsg(handle);
+
+      /* `uv__udp_sendmsg` may not be able to do non-blocking write straight
+      * away. In such cases the `io_watcher` has to be queued for asynchronous
+      * write.
+      */
+      if (!QUEUE_EMPTY(&handle->write_queue))
+        uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
+    } else {
+      uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
+    }
   }
 
   return 0;
@@ -970,8 +996,10 @@ int uv__udp_init_ex(uv_loop_t* loop,
   handle->send_queue_size = 0;
   handle->send_queue_count = 0;
   uv__io_init(&handle->io_watcher, uv__udp_io, fd);
+  handle->io_watcher.oneshot = 1; // for uring
   QUEUE_INIT(&handle->write_queue);
   QUEUE_INIT(&handle->write_completed_queue);
+  QUEUE_INIT(&handle->write_pending_queue);
 
   return 0;
 }
@@ -979,6 +1007,9 @@ int uv__udp_init_ex(uv_loop_t* loop,
 
 int uv_udp_using_recvmmsg(const uv_udp_t* handle) {
 #if HAVE_MMSG
+  if (handle->loop->flags & UV_LOOP_USE_URING)
+    return 0;
+
   if (handle->flags & UV_HANDLE_UDP_RECVMMSG) {
     uv_once(&once, uv__udp_mmsg_init);
     return uv__recvmmsg_avail;
@@ -1313,6 +1344,7 @@ int uv__udp_recv_start(uv_udp_t* handle,
   handle->recv_cb = recv_cb;
 
   uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
+
   uv__handle_start(handle);
 
   return 0;

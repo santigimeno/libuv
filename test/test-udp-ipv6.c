@@ -126,8 +126,11 @@ static void ipv6_recv_ok(uv_udp_t* handle,
   CHECK_HANDLE(handle);
 
   printf("got %d %.*s\n", (int) nread, nread > 0 ? (int) nread : 0, buf->base);
-  if (!is_from_client(addr) || (nread == 0 && addr == NULL))
+  if (!is_from_client(addr) ||
+      (nread == 0 && addr == NULL) ||
+      nread == UV_ECANCELED) {
     return;
+  }
 
   ASSERT(nread == 9);
   ASSERT(!memcmp(buf->base, data, 9));

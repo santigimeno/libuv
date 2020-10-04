@@ -322,6 +322,8 @@ void uv__uring_platform_loop_delete(uv_loop_t* loop);
 void uv__uring_platform_invalidate_fd(uv_loop_t* loop, int fd);
 int uv__uring_io_check_fd(uv_loop_t* loop, int fd);
 void uv__uring_io_poll(uv_loop_t* loop, int timeout);
+void uv__uring_udp_sendmsg(uv_udp_t* handle);
+void uv__uring_udp_recvmsg(uv_udp_t* handle);
 #endif
 
 typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);

@@ -104,7 +104,8 @@ static void recv_cb(uv_udp_t* handle,
   int r;
 
   if (nread < 0) {
-    ASSERT(0 && "unexpected error");
+    ASSERT_EQ(UV_ECANCELED, nread);
+    return;
   }
 
   if (nread == 0) {

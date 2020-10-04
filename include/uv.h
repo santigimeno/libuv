@@ -400,7 +400,11 @@ UV_EXTERN char* uv_err_name_r(int err, char* buf, size_t buflen);
   /* read-only */                                                             \
   uv_req_type type;                                                           \
   /* private */                                                               \
-  void* reserved[6];                                                          \
+  void* reserved[5];                                                          \
+  union {                                                                     \
+    uintptr_t uring_req_type;                                                 \
+    uintptr_t unused;                                                         \
+  } un;                                                                       \
   UV_REQ_PRIVATE_FIELDS                                                       \
 
 /* Abstract base class of all requests. */
@@ -436,8 +440,12 @@ struct uv_shutdown_s {
   void* handle_queue[2];                                                      \
   union {                                                                     \
     int fd;                                                                   \
-    void* reserved[4];                                                        \
+    void* reserved[3];                                                        \
   } u;                                                                        \
+  union {                                                                     \
+    uintptr_t uring_req_type;                                                 \
+    uintptr_t unused;                                                         \
+  } un;                                                                       \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
 /* The abstract base class of all handles. */
