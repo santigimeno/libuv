@@ -38,6 +38,7 @@ static int recv_cb_called;
 static int close_cb_called;
 static int alloc_cb_called;
 static int timer_cb_called;
+static int can_recverr;
 
 
 static void alloc_cb(uv_handle_t* handle,
@@ -95,7 +96,8 @@ static void timer_cb(uv_timer_t* h) {
   ASSERT_PTR_EQ(h, &timer);
   timer_cb_called++;
   uv_close((uv_handle_t*) &client, close_cb);
-  uv_close((uv_handle_t*) &client2, close_cb);
+  if (can_recverr)
+    uv_close((uv_handle_t*) &client2, close_cb);
   uv_close((uv_handle_t*) h, close_cb);
 }
 
@@ -107,12 +109,9 @@ TEST_IMPL(udp_send_unreachable) {
   uv_udp_send_t req1, req2, req3, req4;
   uv_buf_t buf;
   int r;
-  int can_recverr;
 
 #ifdef __linux__
   can_recverr = 1;
-#else
-  can_recverr = 0;
 #endif
 
   ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
@@ -155,15 +154,15 @@ TEST_IMPL(udp_send_unreachable) {
                   send_cb);
   ASSERT_EQ(r, 0);
 
-  r = uv_udp_init(uv_default_loop(), &client2);
-  ASSERT_EQ(r, 0);
-
-  r = uv_udp_bind(&client2,
-		  (const struct sockaddr*) &addr3,
-		  UV_UDP_LINUX_RECVERR);
-  ASSERT_EQ(r, 0);
-
   if (can_recverr) {
+    r = uv_udp_init(uv_default_loop(), &client2);
+    ASSERT_EQ(r, 0);
+
+    r = uv_udp_bind(&client2,
+                    (const struct sockaddr*) &addr3,
+                    UV_UDP_LINUX_RECVERR);
+    ASSERT_EQ(r, 0);
+
     r = uv_udp_recv_start(&client2, alloc_cb, recv_cb);
     ASSERT_EQ(r, 0);
 
@@ -171,21 +170,21 @@ TEST_IMPL(udp_send_unreachable) {
     buf = uv_buf_init("PING", 4);
 
     r = uv_udp_send(&req3,
-		    &client2,
-		    &buf,
-		    1,
-		    (const struct sockaddr*) &addr,
-		    send_cb_recverr);
+                    &client2,
+                    &buf,
+                    1,
+                    (const struct sockaddr*) &addr,
+                    send_cb_recverr);
     ASSERT_EQ(r, 0);
 
     buf = uv_buf_init("PANG", 4);
 
     r = uv_udp_send(&req4,
-		    &client2,
-		    &buf,
-		    1,
-		    (const struct sockaddr*) &addr,
-		    send_cb_recverr);
+                    &client2,
+                    &buf,
+                    1,
+                    (const struct sockaddr*) &addr,
+                    send_cb_recverr);
     ASSERT_EQ(r, 0);
   }
 
