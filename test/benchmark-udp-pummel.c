@@ -49,8 +49,8 @@ static unsigned int packet_counter = (unsigned int) 1e6;
 static int n_senders_;
 static int n_receivers_;
 static uv_buf_t bufs[5];
-static struct sender_state senders[1024];
-static struct receiver_state receivers[1024];
+static struct sender_state senders[10240];
+static struct receiver_state receivers[10240];
 
 static unsigned int send_cb_called;
 static unsigned int recv_cb_called;
@@ -231,13 +231,48 @@ static int pummel(unsigned int n_senders,
 X(1, 1)
 X(1, 10)
 X(1, 100)
+X(1, 200)
+X(1, 300)
+X(1, 400)
+X(1, 500)
+X(1, 600)
+X(1, 700)
+X(1, 800)
+X(1, 900)
 X(1, 1000)
 X(10, 10)
 X(10, 100)
+X(10, 200)
+X(10, 300)
+X(10, 400)
+X(10, 500)
+X(10, 600)
+X(10, 700)
+X(10, 800)
+X(10, 900)
 X(10, 1000)
 X(100, 10)
 X(100, 100)
+X(100, 200)
+X(100, 300)
+X(100, 400)
+X(100, 500)
+X(100, 600)
+X(100, 700)
+X(100, 800)
+X(100, 900)
 X(100, 1000)
 X(1000, 1000)
+X(1000, 2000)
+X(1000, 3000)
+X(1000, 4000)
+X(1000, 5000)
+X(1000, 6000)
+X(1000, 7000)
+X(1000, 8000)
+X(1000, 9000)
+X(1000, 10000)
+X(10000, 10000)
+
 
 #undef X
