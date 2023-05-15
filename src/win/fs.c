@@ -1886,21 +1886,23 @@ INLINE static void fs__stat_prepare_path(WCHAR* pathw) {
   }
 }
 
-
 INLINE static DWORD fs__stat_impl_from_path(WCHAR* path,
                                             int do_lstat,
                                             uv_stat_t* statbuf) {
   HANDLE handle;
+  HANDLE reopened_handle;
+  DWORD mode;
   DWORD flags;
   DWORD ret;
 
+  mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
   flags = FILE_FLAG_BACKUP_SEMANTICS;
   if (do_lstat)
     flags |= FILE_FLAG_OPEN_REPARSE_POINT;
 
   handle = CreateFileW(path,
                        FILE_READ_ATTRIBUTES,
-                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                       mode,
                        NULL,
                        OPEN_EXISTING,
                        flags,
@@ -1914,6 +1916,25 @@ INLINE static DWORD fs__stat_impl_from_path(WCHAR* path,
   else
     ret = 0;
 
+  /*if (do_lstat &&
+      (ret == ERROR_SYMLINK_NOT_SUPPORTED ||
+       ret == ERROR_NOT_A_REPARSE_POINT)) {
+    flags &= ~FILE_FLAG_OPEN_REPARSE_POINT; 
+    reopened_handle = ReOpenFile(handle,
+                                 FILE_READ_ATTRIBUTES,
+                                 mode,
+                                 flags);
+    if (reopened_handle == INVALID_HANDLE_VALUE) {
+      ret = GetLastError();
+    } else if (fs__stat_handle(reopened_handle, statbuf, 0) != 0) {
+      ret = GetLastError();
+    } else {
+      ret = 0;
+    }
+
+    CloseHandle(reopened_handle);
+  }*/
+
   CloseHandle(handle);
   return ret;
 }
@@ -1924,16 +1945,8 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
 
   error = fs__stat_impl_from_path(req->file.pathw, do_lstat, &req->statbuf);
   if (error != 0) {
-    if (do_lstat &&
-        (error == ERROR_SYMLINK_NOT_SUPPORTED ||
-         error == ERROR_NOT_A_REPARSE_POINT)) {
-      /* We opened a reparse point but it was not a symlink. Try again. */
-      fs__stat_impl(req, 0);
-    } else {
-      /* Stat failed. */
-      SET_REQ_WIN32_ERROR(req, error);
-    }
-
+    /* Stat failed. */
+    SET_REQ_WIN32_ERROR(req, error);
     return;
   }
 
