@@ -550,10 +550,7 @@ typedef struct {
   unsigned char events;
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
-  union {                                                                     \
-    void* heap[3];                                                            \
-    struct uv__queue queue;                                                   \
-  } node;                                                                     \
+  void* heap_node[3];                                                         \
   int unused;                                                                 \
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
