@@ -406,7 +406,26 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 }
 
 
+static ssize_t (*uv__preadv)(int, const struct iovec*, int, off_t);
+
+static void uv__preadv_initonce(void) {
+  /* z/os doesn't have RTLD_DEFAULT but that's okay
+   * because it doesn't have mkostemp(O_CLOEXEC) either.
+   */
+  uv__preadv = (ssize_t (*)(int, const struct iovec*, int, off_t)) dlsym(RTLD_DEFAULT, "preadv");
+  if (uv__preadv == NULL)
+    uv__preadv = preadv;
+
+  /* We don't care about errors, but we do want to clean them up.
+   * If there has been no error, then dlerror() will just return
+   * NULL.
+   */
+  dlerror();
+}
+
+
 static ssize_t uv__fs_read(uv_fs_t* req) {
+  static uv_once_t once = UV_ONCE_INIT;
   const struct iovec* bufs;
   unsigned int iovmax;
   size_t nbufs;
@@ -432,8 +451,10 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
   } else {
     if (nbufs == 1)
       r = pread(fd, bufs->iov_base, bufs->iov_len, off);
-    else if (nbufs > 1)
-      r = preadv(fd, bufs, nbufs, off);
+    else if (nbufs > 1) {
+      uv_once(&once, uv__preadv_initonce);
+      r = uv__preadv(fd, bufs, nbufs, off);
+    }
   }
 
 #ifdef __PASE__
