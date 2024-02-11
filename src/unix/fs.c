@@ -408,13 +408,17 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 
 static ssize_t (*uv__preadv)(int, const struct iovec*, int, off_t);
 
+static ssize_t uv__pread(int fd, const struct iovec* bufs, int, off_t off) {
+  return pread(fd, bufs->iov_base, bufs->iov_len, off);
+}
+
 static void uv__preadv_initonce(void) {
   /* z/os doesn't have RTLD_DEFAULT but that's okay
    * because it doesn't have mkostemp(O_CLOEXEC) either.
    */
   uv__preadv = (ssize_t (*)(int, const struct iovec*, int, off_t)) dlsym(RTLD_DEFAULT, "preadv");
   if (uv__preadv == NULL)
-    uv__preadv = preadv;
+    uv__preadv = uv__pread;
 
   /* We don't care about errors, but we do want to clean them up.
    * If there has been no error, then dlerror() will just return
@@ -1111,7 +1115,30 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
 }
 
 
+static ssize_t (*uv__pwritev)(int, const struct iovec*, int, off_t);
+
+static ssize_t uv__pwrite(int fd, const struct iovec* bufs, int, off_t off) {
+  return pwrite(fd, bufs->iov_base, bufs->iov_len, off);
+}
+
+static void uv__pwritev_initonce(void) {
+  /* z/os doesn't have RTLD_DEFAULT but that's okay
+   * because it doesn't have mkostemp(O_CLOEXEC) either.
+   */
+  uv__pwritev = (ssize_t (*)(int, const struct iovec*, int, off_t)) dlsym(RTLD_DEFAULT, "pwritev");
+  if (uv__pwritev == NULL)
+    uv__pwritev = uv__pwrite;
+
+  /* We don't care about errors, but we do want to clean them up.
+   * If there has been no error, then dlerror() will just return
+   * NULL.
+   */
+  dlerror();
+}
+
+
 static ssize_t uv__fs_write(uv_fs_t* req) {
+  static uv_once_t once = UV_ONCE_INIT;
   const struct iovec* bufs;
   size_t nbufs;
   ssize_t r;
@@ -1132,8 +1159,10 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
   } else {
     if (nbufs == 1)
       r = pwrite(fd, bufs->iov_base, bufs->iov_len, off);
-    else if (nbufs > 1)
-      r = pwritev(fd, bufs, nbufs, off);
+    else if (nbufs > 1) {
+      uv_once(&once, uv__pwritev_initonce);
+      r = uv__pwritev(fd, bufs, nbufs, off);
+    }
   }
 
   return r;
