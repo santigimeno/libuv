@@ -1281,14 +1281,15 @@ static void uv__epoll_ctl_flush(int epollfd,
     cqe = ctl->cqe;
     cqe = &cqe[slot];
 
+    fd = cqe->user_data >> 32;
+    op = 3 & cqe->user_data;
+
+    fprintf(stderr, "libuv: io_uring EPOLL_CTL completed. fd: %d, op: %d, res: %d\n", fd, op, cqe->res);
+
     if (cqe->res == 0)
       continue;
 
-    fd = cqe->user_data >> 32;
-    op = 3 & cqe->user_data;
     oldslot = 255 & (cqe->user_data >> 2);
-
-    fprintf(stderr, "libuv: io_uring EPOLL_CTL completed. fd: %d, op: %d, res: %d\n", fd, op, cqe->res);
 
     if (op == EPOLL_CTL_DEL)
       continue;
