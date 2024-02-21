@@ -1233,7 +1233,7 @@ static void uv__epoll_ctl_prep(int epollfd,
 
     fprintf(stderr, "libuv: io_uring EPOLL_CTL prep. fd: %d, op: %d\n", fd, op);
 
-    if ((*ctl->sqhead & mask) == (*ctl->sqtail & mask))
+    // if ((*ctl->sqhead & mask) == (*ctl->sqtail & mask))
       uv__epoll_ctl_flush(epollfd, ctl, events);
   }
 }
